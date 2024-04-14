@@ -1,5 +1,7 @@
 pub mod socket;
 pub use crate::socket::*;
+pub mod proc_crypto_parsing;
+pub use crate::proc_crypto_parsing::*;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
