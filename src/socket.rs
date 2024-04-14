@@ -119,6 +119,7 @@ impl Write for Socket {
 #[cfg(test)]
 mod sock_tests {
     use super::*;
+    use sha2::{Digest, Sha256};
     use std::os::fd::AsFd;
 
     #[test]
@@ -127,6 +128,26 @@ mod sock_tests {
             let sock = create_socket(b"hash", b"sha256").unwrap();
             let child = create_socket_instance(sock.as_fd()).unwrap();
             assert!(child.as_raw_fd() > 0);
+        }
+    }
+
+    #[test]
+    fn read_write_hash() {
+        unsafe {
+            let sock = create_socket(b"hash", b"sha256").unwrap();
+            let child = create_socket_instance(sock.as_fd()).unwrap();
+            assert!(child.as_raw_fd() > 0);
+
+            let hash_input = [0u8; 0];
+
+            let mut kernel_hasher = Socket { fd: child };
+            let mut kernel_hash = [0u8; 32];
+            kernel_hasher.write(&hash_input).unwrap();
+            kernel_hasher.read(&mut kernel_hash).unwrap();
+
+            let code_hash: [u8; 32] = Sha256::digest(&hash_input).into();
+
+            assert_eq!(kernel_hash, code_hash);
         }
     }
 }
