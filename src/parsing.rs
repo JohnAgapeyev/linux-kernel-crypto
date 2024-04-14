@@ -63,8 +63,8 @@ fn chunk_entries(contents: impl BufRead) -> Result<Vec<Vec<String>>> {
         .lines()
         .group_by(|line| line.as_ref().is_ok_and(|l| !l.is_empty()))
         .into_iter()
-        .filter_map(|(key, group)| key.then_some(group.try_collect()))
-        .try_collect()
+        .filter_map(|(key, group)| key.then_some(group.collect()))
+        .collect()
 }
 
 fn trim_line(line: &str) -> Result<(&str, &str)> {
