@@ -150,4 +150,44 @@ mod sock_tests {
             assert_eq!(kernel_hash, code_hash);
         }
     }
+
+    #[test]
+    fn read_write_hash_vectored() {
+        let mut inputs = Vec::new();
+
+        for i in 0..100 {
+            inputs.push([i; 17]);
+        }
+
+        let mut hash_input = Vec::new();
+        for i in 0..100 {
+            hash_input.push(IoSlice::new(&inputs[i]));
+        }
+
+        let mut kernel_hasher: Socket = unsafe {
+            let sock = create_socket(b"hash", b"sha256").unwrap();
+            let child = create_socket_instance(sock.as_fd()).unwrap();
+            assert!(child.as_raw_fd() > 0);
+            Socket { fd: child }
+        };
+
+        kernel_hasher.write_vectored(&hash_input).unwrap();
+
+        let mut kernel_hash = [0u8; 32];
+        let mut kernel_outputs = Vec::new();
+
+        for chunk in kernel_hash.chunks_exact_mut(1) {
+            kernel_outputs.push(IoSliceMut::new(chunk))
+        }
+
+        kernel_hasher.read_vectored(&mut kernel_outputs).unwrap();
+
+        let mut code_hasher = Sha256::new();
+        for chunk in &hash_input {
+            code_hasher.update(&**chunk);
+        }
+        let code_hash: [u8; 32] = code_hasher.finalize().into();
+
+        assert_eq!(kernel_hash, code_hash);
+    }
 }
