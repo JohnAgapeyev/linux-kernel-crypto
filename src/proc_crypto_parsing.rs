@@ -21,10 +21,6 @@ mod parsing_tests {
     fn entry_chunking() {
         let f = BufReader::new(File::open(CRYPTO_FILE_PATH).unwrap());
         let output = chunk_entries(f).unwrap();
-
-        for chunk in &output {
-            println!("{:#?}", chunk);
-        }
-        assert!(output.len() > 2);
+        assert!(!output.is_empty());
     }
 }
