@@ -59,6 +59,42 @@ impl TryFrom<&str> for EntryKey {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+enum TransformType {
+    Aead,
+    AsyncHash,
+    PublicKeyCipher,
+    Cipher,
+    Compression,
+    KeyAgreementProtocolPrimitive,
+    LinearSymmetricKeyCipher,
+    Rng,
+    SynchronousCompression,
+    SynchronousHash,
+    SymmetricKeyCipher,
+}
+
+impl TryFrom<&str> for TransformType {
+    type Error = std::io::Error;
+
+    fn try_from(value: &str) -> Result<Self> {
+        match value {
+            "aead" => Ok(TransformType::Aead),
+            "ahash" => Ok(TransformType::AsyncHash),
+            "akcipher" => Ok(TransformType::PublicKeyCipher),
+            "cipher" => Ok(TransformType::Cipher),
+            "compression" => Ok(TransformType::Compression),
+            "kpp" => Ok(TransformType::KeyAgreementProtocolPrimitive),
+            "lskcipher" => Ok(TransformType::LinearSymmetricKeyCipher),
+            "rng" => Ok(TransformType::Rng),
+            "scomp" => Ok(TransformType::SynchronousCompression),
+            "shash" => Ok(TransformType::SynchronousHash),
+            "skcipher" => Ok(TransformType::SymmetricKeyCipher),
+            _ => Err(Error::from(ErrorKind::InvalidData)),
+        }
+    }
+}
+
 fn chunk_entries(contents: impl BufRead) -> Result<Vec<Vec<String>>> {
     contents
         .lines()
