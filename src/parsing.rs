@@ -5,6 +5,7 @@ use std::io::{self, BufRead, BufReader, Error, ErrorKind, Result};
 
 const CRYPTO_FILE_PATH: &str = "/proc/crypto";
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum EntryKey {
     Async,
     BlockSize,
@@ -14,9 +15,9 @@ enum EntryKey {
     GenIv,
     Internal,
     IvSize,
-    Max,
+    MaxKeySize,
     MaxAuthSize,
-    Min,
+    MinKeySize,
     Module,
     Name,
     Priority,
@@ -41,9 +42,9 @@ impl TryFrom<&str> for EntryKey {
             "geniv" => Ok(EntryKey::GenIv),
             "internal" => Ok(EntryKey::Internal),
             "ivsize" => Ok(EntryKey::IvSize),
-            "max" => Ok(EntryKey::Max),
+            "max keysize" => Ok(EntryKey::MaxKeySize),
             "maxauthsize" => Ok(EntryKey::MaxAuthSize),
-            "min" => Ok(EntryKey::Min),
+            "min keysize" => Ok(EntryKey::MinKeySize),
             "module" => Ok(EntryKey::Module),
             "name" => Ok(EntryKey::Name),
             "priority" => Ok(EntryKey::Priority),
@@ -77,7 +78,26 @@ fn trim_line(line: &str) -> Result<(&str, &str)> {
 }
 
 fn parse_entries(contents: impl BufRead) -> Result<HashMap<String, HashMap<EntryKey, String>>> {
-    return Ok(HashMap::new());
+    let entries = chunk_entries(contents)?;
+
+    let mut entry_lookup: HashMap<String, HashMap<EntryKey, String>> = HashMap::new();
+
+    for entry in entries {
+        let mut line_lookup: HashMap<EntryKey, String> = HashMap::new();
+        for line in entry {
+            let (key, value) = trim_line(&line)?;
+            line_lookup.insert(EntryKey::try_from(key)?, value.to_string());
+        }
+
+        let entry_name: String = line_lookup
+            .get(&EntryKey::Name)
+            .ok_or(Error::from(ErrorKind::InvalidData))?
+            .to_string();
+
+        entry_lookup.insert(entry_name, line_lookup);
+    }
+
+    Ok(entry_lookup)
 }
 
 #[cfg(test)]
@@ -89,7 +109,6 @@ mod parsing_tests {
         let f = BufReader::new(File::open(CRYPTO_FILE_PATH).unwrap());
         let output = chunk_entries(f).unwrap();
         assert!(!output.is_empty());
-        println!("{:#?}", output[0])
     }
 
     #[test]
@@ -97,5 +116,25 @@ mod parsing_tests {
         let (key, value) = trim_line("driver       : cryptd(__generic-gcm-aesni)").unwrap();
         assert_eq!(key, "driver");
         assert_eq!(value, "cryptd(__generic-gcm-aesni)");
+    }
+
+    #[test]
+    fn parsing_to_map() {
+        let f = BufReader::new(File::open(CRYPTO_FILE_PATH).unwrap());
+        let output = parse_entries(f).unwrap();
+        assert!(!output.is_empty());
+
+        for (entry_key, entry_map) in output {
+            assert!(!entry_key.is_empty());
+            assert!(!entry_map.is_empty());
+
+            assert!(entry_map.contains_key(&EntryKey::Name));
+            assert!(entry_map.contains_key(&EntryKey::Driver));
+            assert!(entry_map.contains_key(&EntryKey::Module));
+            assert!(entry_map.contains_key(&EntryKey::Type));
+            assert!(entry_map.contains_key(&EntryKey::RefCnt));
+            assert!(entry_map.contains_key(&EntryKey::Internal));
+            assert!(entry_map.contains_key(&EntryKey::SelfTest));
+        }
     }
 }
