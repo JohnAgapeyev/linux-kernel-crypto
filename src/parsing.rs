@@ -59,6 +59,26 @@ impl TryFrom<&str> for EntryKey {
     }
 }
 
+struct TransformBase {
+    name: String,
+    driver: String,
+    module: String,
+    priority: String,
+    ref_cnt: u64,
+    self_test: u64,
+    internal: bool,
+    ttype: TransformType,
+}
+
+struct AeadTransform {
+    base: TransformBase,
+    is_async: bool,
+    block_size: u64,
+    iv_size: u64,
+    max_auth_size: u64,
+    gen_iv: Option<String>,
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum TransformType {
     Aead,
@@ -169,10 +189,32 @@ mod parsing_tests {
             assert!(entry_map.contains_key(&EntryKey::Name));
             assert!(entry_map.contains_key(&EntryKey::Driver));
             assert!(entry_map.contains_key(&EntryKey::Module));
-            assert!(entry_map.contains_key(&EntryKey::Type));
+            assert!(entry_map.contains_key(&EntryKey::Priority));
             assert!(entry_map.contains_key(&EntryKey::RefCnt));
-            assert!(entry_map.contains_key(&EntryKey::Internal));
             assert!(entry_map.contains_key(&EntryKey::SelfTest));
+            assert!(entry_map.contains_key(&EntryKey::Internal));
+            assert!(entry_map.contains_key(&EntryKey::Type));
         }
+    }
+
+    #[test]
+    fn can_construct_transform() {
+        let _ = AeadTransform {
+            base: TransformBase {
+                name: "".to_string(),
+                driver: "".to_string(),
+                module: "".to_string(),
+                priority: "".to_string(),
+                ref_cnt: 0u64,
+                self_test: 0u64,
+                internal: false,
+                ttype: TransformType::Aead,
+            },
+            is_async: true,
+            block_size: 1u64,
+            iv_size: 12u64,
+            max_auth_size: 16u64,
+            gen_iv: None,
+        };
     }
 }
