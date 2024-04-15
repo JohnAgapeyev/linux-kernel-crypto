@@ -62,6 +62,7 @@ impl TryFrom<&str> for EntryKey {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum TransformType {
     Aead,
+    AsyncCompression,
     AsyncHash,
     PublicKeyCipher,
     Cipher,
@@ -69,8 +70,8 @@ enum TransformType {
     KeyAgreementProtocolPrimitive,
     LinearSymmetricKeyCipher,
     Rng,
-    SynchronousCompression,
-    SynchronousHash,
+    SyncCompression,
+    SyncHash,
     SymmetricKeyCipher,
 }
 
@@ -80,6 +81,7 @@ impl TryFrom<&str> for TransformType {
     fn try_from(value: &str) -> Result<Self> {
         match value {
             "aead" => Ok(TransformType::Aead),
+            "acomp" => Ok(TransformType::AsyncCompression),
             "ahash" => Ok(TransformType::AsyncHash),
             "akcipher" => Ok(TransformType::PublicKeyCipher),
             "cipher" => Ok(TransformType::Cipher),
@@ -87,8 +89,8 @@ impl TryFrom<&str> for TransformType {
             "kpp" => Ok(TransformType::KeyAgreementProtocolPrimitive),
             "lskcipher" => Ok(TransformType::LinearSymmetricKeyCipher),
             "rng" => Ok(TransformType::Rng),
-            "scomp" => Ok(TransformType::SynchronousCompression),
-            "shash" => Ok(TransformType::SynchronousHash),
+            "scomp" => Ok(TransformType::SyncCompression),
+            "shash" => Ok(TransformType::SyncHash),
             "skcipher" => Ok(TransformType::SymmetricKeyCipher),
             _ => Err(Error::from(ErrorKind::InvalidData)),
         }
