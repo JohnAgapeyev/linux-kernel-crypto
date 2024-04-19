@@ -103,7 +103,7 @@ struct TransformBase {
     module: String,
     priority: String,
     ref_cnt: u64,
-    self_test: u64,
+    self_test: bool,
     internal: bool,
     ttype: TransformType,
 }
@@ -209,6 +209,193 @@ fn parse_entries(contents: impl BufRead) -> Result<HashMap<String, HashMap<Entry
     Ok(entry_lookup)
 }
 
+fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
+    let mut is_async: Option<TransformType> = None;
+    let mut block_size: Option<u64> = None;
+    let mut chunk_size: Option<u64> = None;
+    let mut digest_size: Option<u64> = None;
+    let mut driver: Option<String> = None;
+    let mut gen_iv: Option<String> = None;
+    let mut internal: Option<bool> = None;
+    let mut iv_size: Option<u64> = None;
+    let mut max_key_size: Option<u64> = None;
+    let mut max_auth_size: Option<u64> = None;
+    let mut min_key_size: Option<u64> = None;
+    let mut module: Option<String> = None;
+    let mut name: Option<String> = None;
+    let mut priority: Option<String> = None;
+    let mut ref_cnt: Option<u64> = None;
+    let mut seed_size: Option<u64> = None;
+    let mut self_test: Option<bool> = None;
+    let mut state_size: Option<u64> = None;
+    let mut ttype: Option<TransformType> = None;
+    let mut walk_size: Option<u64> = None;
+
+    for (key, value) in rows {
+        match key {
+            EntryKey::Async => {
+                is_async = Some(value.as_str().try_into()?);
+            }
+            EntryKey::BlockSize => {
+                block_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::ChunkSize => {
+                chunk_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::DigestSize => {
+                digest_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::Driver => {
+                driver = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::GenIv => {
+                if value != "<none>" {
+                    return Err(Error::from(ErrorKind::InvalidData));
+                }
+                gen_iv = Some(value.clone());
+            }
+            EntryKey::Internal => {
+                internal = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::IvSize => {
+                iv_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::MaxKeySize => {
+                max_key_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::MaxAuthSize => {
+                max_auth_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::MinKeySize => {
+                min_key_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::Module => {
+                module = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::Name => {
+                name = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::Priority => {
+                priority = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::RefCnt => {
+                ref_cnt = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::SeedSize => {
+                seed_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::SelfTest => {
+                self_test = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::StateSize => {
+                state_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+            EntryKey::Type => {
+                ttype = Some(value.as_str().try_into()?);
+            }
+            EntryKey::WalkSize => {
+                walk_size = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
+            }
+        };
+    }
+
+    let base: TransformBase = TransformBase {
+        name: name.ok_or(Error::from(ErrorKind::InvalidData))?,
+        driver: driver.ok_or(Error::from(ErrorKind::InvalidData))?,
+        module: module.ok_or(Error::from(ErrorKind::InvalidData))?,
+        priority: priority.ok_or(Error::from(ErrorKind::InvalidData))?,
+        ref_cnt: ref_cnt.ok_or(Error::from(ErrorKind::InvalidData))?,
+        self_test: self_test.ok_or(Error::from(ErrorKind::InvalidData))?,
+        internal: internal.ok_or(Error::from(ErrorKind::InvalidData))?,
+        ttype: ttype.ok_or(Error::from(ErrorKind::InvalidData))?,
+    };
+
+    //match ttype {
+    //    TransformType::Aead => (),
+    //    TransformType::AsyncCompression => (),
+    //    TransformType::AsyncHash => (),
+    //    TransformType::PublicKeyCipher => (),
+    //    TransformType::Cipher => (),
+    //    TransformType::Compression => (),
+    //    TransformType::KeyAgreementProtocolPrimitive => (),
+    //    TransformType::LinearSymmetricKeyCipher => (),
+    //    TransformType::Rng => (),
+    //    TransformType::SyncCompression => (),
+    //    TransformType::SyncHash => (),
+    //    TransformType::SymmetricKeyCipher => (),
+    //};
+
+    Ok(true)
+}
+
 #[cfg(test)]
 mod parsing_tests {
     use super::*;
@@ -257,7 +444,7 @@ mod parsing_tests {
                 module: "".to_string(),
                 priority: "".to_string(),
                 ref_cnt: 0u64,
-                self_test: 0u64,
+                self_test: true,
                 internal: false,
                 ttype: TransformType::Aead,
             },
