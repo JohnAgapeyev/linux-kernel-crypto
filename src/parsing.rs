@@ -59,26 +59,6 @@ impl TryFrom<&str> for EntryKey {
     }
 }
 
-struct TransformBase {
-    name: String,
-    driver: String,
-    module: String,
-    priority: String,
-    ref_cnt: u64,
-    self_test: u64,
-    internal: bool,
-    ttype: TransformType,
-}
-
-struct AeadTransform {
-    base: TransformBase,
-    is_async: bool,
-    block_size: u64,
-    iv_size: u64,
-    max_auth_size: u64,
-    gen_iv: Option<String>,
-}
-
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum TransformType {
     Aead,
@@ -115,6 +95,77 @@ impl TryFrom<&str> for TransformType {
             _ => Err(Error::from(ErrorKind::InvalidData)),
         }
     }
+}
+
+struct TransformBase {
+    name: String,
+    driver: String,
+    module: String,
+    priority: String,
+    ref_cnt: u64,
+    self_test: u64,
+    internal: bool,
+    ttype: TransformType,
+}
+
+struct AeadTransform {
+    base: TransformBase,
+    is_async: bool,
+    block_size: u64,
+    iv_size: u64,
+    max_auth_size: u64,
+    gen_iv: Option<String>,
+}
+
+struct AsyncCompressionTransform(TransformBase);
+struct AsyncHashTransform {
+    base: TransformBase,
+    is_async: bool,
+    block_size: u64,
+    digest_size: u64,
+}
+struct PublicKeyTransform(TransformBase);
+struct CipherTransform {
+    base: TransformBase,
+    block_size: u64,
+    min_key_size: u64,
+    max_key_size: u64,
+}
+struct CompressionTransform(TransformBase);
+struct KeyAgreementProtocolPrimitiveTransform(TransformBase);
+struct LinearSymmetricKeyTransform {
+    base: TransformBase,
+    block_size: u64,
+    min_key_size: u64,
+    max_key_size: u64,
+    iv_size: u64,
+    chunk_size: u64,
+    state_size: u64,
+}
+
+struct RngTransform {
+    base: TransformBase,
+    seed_size: u64,
+}
+
+struct SyncCompressionTransform(TransformBase);
+
+struct SyncHashTransform {
+    base: TransformBase,
+    block_size: u64,
+    digest_size: u64,
+}
+
+struct SymmetricKeyCipherTransform {
+    base: TransformBase,
+    is_async: bool,
+    block_size: u64,
+    min_key_size: u64,
+    max_key_size: u64,
+    iv_size: u64,
+    chunk_size: u64,
+    walk_size: u64,
+    state_size: u64,
 }
 
 fn chunk_entries(contents: impl BufRead) -> Result<Vec<Vec<String>>> {
