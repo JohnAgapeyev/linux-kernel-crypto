@@ -263,11 +263,11 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
     for (key, value) in rows {
         match key {
             EntryKey::Async => {
-                is_async = Some(
-                    value
-                        .parse()
-                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
-                );
+                is_async = match value.as_str() {
+                    "yes" => Some(true),
+                    "no" => Some(false),
+                    _ => return Err(Error::from(ErrorKind::InvalidData)),
+                };
             }
             EntryKey::BlockSize => {
                 block_size = Some(
@@ -305,11 +305,11 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                 }
             }
             EntryKey::Internal => {
-                internal = Some(
-                    value
-                        .parse()
-                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
-                );
+                internal = match value.as_str() {
+                    "yes" => Some(true),
+                    "no" => Some(false),
+                    _ => return Err(Error::from(ErrorKind::InvalidData)),
+                };
             }
             EntryKey::IvSize => {
                 iv_size = Some(
@@ -375,11 +375,11 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                 );
             }
             EntryKey::SelfTest => {
-                self_test = Some(
-                    value
-                        .parse()
-                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
-                );
+                self_test = match value.as_str() {
+                    "passed" => Some(true),
+                    "unknown" => Some(false),
+                    _ => return Err(Error::from(ErrorKind::InvalidData)),
+                };
             }
             EntryKey::StateSize => {
                 state_size = Some(
@@ -538,5 +538,19 @@ mod parsing_tests {
             max_auth_size: 16u64,
             gen_iv: None,
         };
+    }
+
+    #[test]
+    fn parsing_to_transform_from_map() {
+        let f = BufReader::new(File::open(CRYPTO_FILE_PATH).unwrap());
+        let output = parse_entries(f).unwrap();
+        assert!(!output.is_empty());
+
+        for (transform_name, transform_entry_map) in output {
+            assert!(!transform_name.is_empty());
+            assert!(!transform_entry_map.is_empty());
+
+            let _ = build_transform(&transform_entry_map).unwrap();
+        }
     }
 }
