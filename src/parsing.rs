@@ -522,27 +522,6 @@ mod parsing_tests {
     }
 
     #[test]
-    fn can_construct_transform() {
-        let _ = AeadTransform {
-            base: TransformBase {
-                name: "".to_string(),
-                driver: "".to_string(),
-                module: "".to_string(),
-                priority: "".to_string(),
-                ref_cnt: 0u64,
-                self_test: true,
-                internal: false,
-                ttype: TransformType::Aead,
-            },
-            is_async: true,
-            block_size: 1u64,
-            iv_size: 12u64,
-            max_auth_size: 16u64,
-            gen_iv: None,
-        };
-    }
-
-    #[test]
     fn parsing_to_transform_from_map() {
         let f = BufReader::new(File::open(CRYPTO_FILE_PATH).unwrap());
         let output = parse_entries(f).unwrap();
