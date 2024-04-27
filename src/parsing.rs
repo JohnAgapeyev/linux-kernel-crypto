@@ -97,6 +97,7 @@ impl TryFrom<&str> for TransformType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct TransformBase {
     name: String,
     driver: String,
@@ -108,6 +109,7 @@ struct TransformBase {
     ttype: TransformType,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct AeadTransform {
     base: TransformBase,
     is_async: bool,
@@ -117,22 +119,29 @@ struct AeadTransform {
     gen_iv: Option<String>,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct AsyncCompressionTransform(TransformBase);
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct AsyncHashTransform {
     base: TransformBase,
     is_async: bool,
     block_size: u64,
     digest_size: u64,
 }
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct PublicKeyTransform(TransformBase);
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct CipherTransform {
     base: TransformBase,
     block_size: u64,
     min_key_size: u64,
     max_key_size: u64,
 }
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct CompressionTransform(TransformBase);
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct KeyAgreementProtocolPrimitiveTransform(TransformBase);
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct LinearSymmetricKeyTransform {
     base: TransformBase,
     block_size: u64,
@@ -143,19 +152,23 @@ struct LinearSymmetricKeyTransform {
     state_size: u64,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct RngTransform {
     base: TransformBase,
     seed_size: u64,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct SyncCompressionTransform(TransformBase);
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct SyncHashTransform {
     base: TransformBase,
     block_size: u64,
     digest_size: u64,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct SymmetricKeyCipherTransform {
     base: TransformBase,
     is_async: bool,
@@ -166,6 +179,22 @@ struct SymmetricKeyCipherTransform {
     chunk_size: u64,
     walk_size: u64,
     state_size: u64,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+enum Transform {
+    Aead(AeadTransform),
+    AsyncCompression(AsyncCompressionTransform),
+    AsyncHash(AsyncHashTransform),
+    PublicKeyCipher(PublicKeyTransform),
+    Cipher(CipherTransform),
+    Compression(CompressionTransform),
+    KeyAgreementProtocolPrimitive(KeyAgreementProtocolPrimitiveTransform),
+    LinearSymmetricKeyCipher(LinearSymmetricKeyTransform),
+    Rng(RngTransform),
+    SyncCompression(SyncCompressionTransform),
+    SyncHash(SyncHashTransform),
+    SymmetricKeyCipher(SymmetricKeyCipherTransform),
 }
 
 fn chunk_entries(contents: impl BufRead) -> Result<Vec<Vec<String>>> {
