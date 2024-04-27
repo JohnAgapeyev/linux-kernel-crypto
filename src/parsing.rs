@@ -210,7 +210,7 @@ fn parse_entries(contents: impl BufRead) -> Result<HashMap<String, HashMap<Entry
 }
 
 fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
-    let mut is_async: Option<TransformType> = None;
+    let mut is_async: Option<bool> = None;
     let mut block_size: Option<u64> = None;
     let mut chunk_size: Option<u64> = None;
     let mut digest_size: Option<u64> = None;
@@ -234,7 +234,11 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
     for (key, value) in rows {
         match key {
             EntryKey::Async => {
-                is_async = Some(value.as_str().try_into()?);
+                is_async = Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::from(ErrorKind::InvalidData))?,
+                );
             }
             EntryKey::BlockSize => {
                 block_size = Some(
