@@ -238,13 +238,13 @@ fn parse_entries(contents: impl BufRead) -> Result<HashMap<String, HashMap<Entry
     Ok(entry_lookup)
 }
 
-fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
+fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
     let mut is_async: Option<bool> = None;
     let mut block_size: Option<u64> = None;
     let mut chunk_size: Option<u64> = None;
     let mut digest_size: Option<u64> = None;
     let mut driver: Option<String> = None;
-    let mut gen_iv: Option<String> = None;
+    let mut gen_iv: Option<Option<String>> = None;
     let mut internal: Option<bool> = None;
     let mut iv_size: Option<u64> = None;
     let mut max_key_size: Option<u64> = None;
@@ -298,10 +298,11 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
                 );
             }
             EntryKey::GenIv => {
-                if value != "<none>" {
-                    return Err(Error::from(ErrorKind::InvalidData));
+                if value == "<none>" {
+                    gen_iv = Some(None);
+                } else {
+                    gen_iv = Some(Some(value.clone()));
                 }
-                gen_iv = Some(value.clone());
             }
             EntryKey::Internal => {
                 internal = Some(
@@ -411,22 +412,72 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<bool> {
         ttype: ttype.ok_or(Error::from(ErrorKind::InvalidData))?,
     };
 
-    //match ttype {
-    //    TransformType::Aead => (),
-    //    TransformType::AsyncCompression => (),
-    //    TransformType::AsyncHash => (),
-    //    TransformType::PublicKeyCipher => (),
-    //    TransformType::Cipher => (),
-    //    TransformType::Compression => (),
-    //    TransformType::KeyAgreementProtocolPrimitive => (),
-    //    TransformType::LinearSymmetricKeyCipher => (),
-    //    TransformType::Rng => (),
-    //    TransformType::SyncCompression => (),
-    //    TransformType::SyncHash => (),
-    //    TransformType::SymmetricKeyCipher => (),
-    //};
-
-    Ok(true)
+    Ok(match base.ttype {
+        TransformType::Aead => Transform::Aead(AeadTransform {
+            base,
+            is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
+            block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            iv_size: iv_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            max_auth_size: max_auth_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            gen_iv: gen_iv.ok_or(Error::from(ErrorKind::InvalidData))?,
+        }),
+        TransformType::AsyncCompression => {
+            Transform::AsyncCompression(AsyncCompressionTransform(base))
+        }
+        TransformType::AsyncHash => Transform::AsyncHash(AsyncHashTransform {
+            base,
+            is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
+            block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            digest_size: digest_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+        }),
+        TransformType::PublicKeyCipher => Transform::PublicKeyCipher(PublicKeyTransform(base)),
+        TransformType::Cipher => Transform::Cipher(CipherTransform {
+            base,
+            block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            min_key_size: min_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            max_key_size: max_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+        }),
+        TransformType::Compression => Transform::Compression(CompressionTransform(base)),
+        TransformType::KeyAgreementProtocolPrimitive => {
+            Transform::KeyAgreementProtocolPrimitive(KeyAgreementProtocolPrimitiveTransform(base))
+        }
+        TransformType::LinearSymmetricKeyCipher => {
+            Transform::LinearSymmetricKeyCipher(LinearSymmetricKeyTransform {
+                base,
+                block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                min_key_size: min_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                max_key_size: max_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                iv_size: iv_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                chunk_size: chunk_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                state_size: state_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            })
+        }
+        TransformType::Rng => Transform::Rng(RngTransform {
+            base,
+            seed_size: seed_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+        }),
+        TransformType::SyncCompression => {
+            Transform::SyncCompression(SyncCompressionTransform(base))
+        }
+        TransformType::SyncHash => Transform::SyncHash(SyncHashTransform {
+            base,
+            block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            digest_size: digest_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+        }),
+        TransformType::SymmetricKeyCipher => {
+            Transform::SymmetricKeyCipher(SymmetricKeyCipherTransform {
+                base,
+                is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
+                block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                min_key_size: min_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                max_key_size: max_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                iv_size: iv_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                chunk_size: chunk_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                walk_size: walk_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+                state_size: state_size.ok_or(Error::from(ErrorKind::InvalidData))?,
+            })
+        }
+    })
 }
 
 #[cfg(test)]
