@@ -398,6 +398,7 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                         .map_err(|_| Error::from(ErrorKind::InvalidData))?,
                 );
             }
+            _ => return Err(Error::from(ErrorKind::InvalidInput)),
         };
     }
 
@@ -477,6 +478,7 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                 state_size: state_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             })
         }
+        _ => return Err(Error::from(ErrorKind::InvalidInput)),
     })
 }
 
