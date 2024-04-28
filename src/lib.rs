@@ -3,6 +3,11 @@ pub use crate::socket::*;
 pub mod parsing;
 pub use crate::parsing::*;
 
+#[cfg(feature = "crypto-traits")]
+pub mod traits;
+#[cfg(feature = "crypto-traits")]
+pub use crate::traits::*;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
