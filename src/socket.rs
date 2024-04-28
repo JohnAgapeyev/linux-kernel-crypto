@@ -32,7 +32,7 @@ pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
 pub fn create_socket(salg_type: &[u8], salg_name: &[u8]) -> Result<OwnedFd> {
     let sock = unsafe {
         match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
-            -1 => panic!("{}", io::Error::last_os_error().to_string()),
+            -1 => return Err(io::Error::last_os_error()),
             fd => OwnedFd::from_raw_fd(fd),
         }
     };
@@ -58,6 +58,22 @@ pub fn create_socket_instance<'fd>(sock: BorrowedFd<'fd>) -> Result<OwnedFd> {
         match libc::accept(sock.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
             -1 => Err(io::Error::last_os_error()),
             fd => Ok(OwnedFd::from_raw_fd(fd)),
+        }
+    }
+}
+
+pub fn set_key<'fd>(sock: BorrowedFd<'fd>, key: &[u8]) -> Result<()> {
+    unsafe {
+        match libc::setsockopt(
+            sock.as_raw_fd(),
+            SOL_ALG,
+            ALG_SET_KEY,
+            key.as_ptr() as *const libc::c_void,
+            key.len().try_into().unwrap(),
+        ) {
+            -1 => Err(io::Error::last_os_error()),
+            0 => Ok(()),
+            _ => unreachable!(),
         }
     }
 }
