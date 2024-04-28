@@ -4,11 +4,30 @@ use libc::*;
 use std::io::{self, IoSlice, IoSliceMut, Read, Result, Write};
 use std::iter::zip;
 use std::mem;
+use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
 use std::os::fd::BorrowedFd;
 use std::os::fd::FromRawFd;
 use std::os::fd::OwnedFd;
 use std::ptr;
+
+pub fn send<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<usize> {
+    unsafe {
+        match libc::send(
+            sock.as_raw_fd(),
+            buf.as_ptr() as *const c_void,
+            buf.len(),
+            flags,
+        ) {
+            -1 => Err(io::Error::last_os_error()),
+            sz => Ok(sz as usize),
+        }
+    }
+}
+
+pub fn send_more<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<usize> {
+    send(sock, buf, flags | MSG_MORE)
+}
 
 pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     assert!(salg_type.len() <= 14);
@@ -85,10 +104,11 @@ pub struct Socket {
 impl Read for Socket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         unsafe {
-            match libc::read(
+            match libc::recv(
                 self.fd.as_raw_fd(),
                 buf.as_mut_ptr() as *mut c_void,
                 buf.len(),
+                0i32,
             ) {
                 -1 => Err(io::Error::last_os_error()),
                 sz => Ok(sz as usize),
@@ -110,16 +130,7 @@ impl Read for Socket {
 }
 impl Write for Socket {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        unsafe {
-            match libc::write(
-                self.fd.as_raw_fd(),
-                buf.as_ptr() as *const c_void,
-                buf.len(),
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                sz => Ok(sz as usize),
-            }
-        }
+        send(self.fd.as_fd(), buf, 0)
     }
     fn flush(&mut self) -> Result<()> {
         Ok(())
