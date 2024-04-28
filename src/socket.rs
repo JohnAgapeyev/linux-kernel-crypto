@@ -29,6 +29,25 @@ pub fn send_more<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<u
     send(sock, buf, flags | MSG_MORE)
 }
 
+pub fn send_msg<'fd>(sock: BorrowedFd<'fd>, bufs: &mut [IoSlice<'_>], flags: i32) -> Result<usize> {
+    let mhdr = msghdr {
+        msg_name: ptr::null_mut(),
+        msg_iov: bufs.as_mut_ptr() as *mut libc::iovec,
+        msg_iovlen: bufs.len(),
+        msg_control: ptr::null_mut(),
+        msg_controllen: 0,
+        msg_namelen: 0,
+        msg_flags: 0,
+    };
+
+    unsafe {
+        match libc::sendmsg(sock.as_raw_fd(), ptr::addr_of!(mhdr), flags) {
+            -1 => Err(io::Error::last_os_error()),
+            sz => Ok(sz as usize),
+        }
+    }
+}
+
 pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     assert!(salg_type.len() <= 14);
     assert!(salg_name.len() <= 64);
