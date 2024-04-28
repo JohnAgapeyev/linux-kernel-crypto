@@ -10,7 +10,7 @@ use std::os::fd::FromRawFd;
 use std::os::fd::OwnedFd;
 use std::ptr;
 
-pub unsafe fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
+pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     assert!(salg_type.len() <= 14);
     assert!(salg_name.len() <= 64);
     let mut addr = sockaddr_alg {
@@ -29,30 +29,36 @@ pub unsafe fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     addr
 }
 
-pub unsafe fn create_socket(salg_type: &[u8], salg_name: &[u8]) -> Result<OwnedFd> {
-    let sock = match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC, 0) {
-        -1 => panic!("{}", io::Error::last_os_error().to_string()),
-        fd => OwnedFd::from_raw_fd(fd),
+pub fn create_socket(salg_type: &[u8], salg_name: &[u8]) -> Result<OwnedFd> {
+    let sock = unsafe {
+        match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
+            -1 => panic!("{}", io::Error::last_os_error().to_string()),
+            fd => OwnedFd::from_raw_fd(fd),
+        }
     };
 
     let addr = fill_addr(salg_type, salg_name);
 
-    match libc::bind(
-        sock.as_raw_fd(),
-        &addr as *const sockaddr_alg as *const sockaddr,
-        mem::size_of_val(&addr).try_into().unwrap(),
-    ) {
-        -1 => return Err(io::Error::last_os_error()),
-        _ => (),
+    unsafe {
+        match libc::bind(
+            sock.as_raw_fd(),
+            &addr as *const sockaddr_alg as *const sockaddr,
+            mem::size_of_val(&addr).try_into().unwrap(),
+        ) {
+            -1 => return Err(io::Error::last_os_error()),
+            _ => (),
+        }
     }
 
     Ok(sock)
 }
 
-pub unsafe fn create_socket_instance<'fd>(sock: BorrowedFd<'fd>) -> Result<OwnedFd> {
-    match libc::accept(sock.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
-        -1 => Err(io::Error::last_os_error()),
-        fd => Ok(OwnedFd::from_raw_fd(fd)),
+pub fn create_socket_instance<'fd>(sock: BorrowedFd<'fd>) -> Result<OwnedFd> {
+    unsafe {
+        match libc::accept(sock.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
+            -1 => Err(io::Error::last_os_error()),
+            fd => Ok(OwnedFd::from_raw_fd(fd)),
+        }
     }
 }
 
@@ -124,31 +130,27 @@ mod sock_tests {
 
     #[test]
     fn it_works() {
-        unsafe {
-            let sock = create_socket(b"hash", b"sha256").unwrap();
-            let child = create_socket_instance(sock.as_fd()).unwrap();
-            assert!(child.as_raw_fd() > 0);
-        }
+        let sock = create_socket(b"hash", b"sha256").unwrap();
+        let child = create_socket_instance(sock.as_fd()).unwrap();
+        assert!(child.as_raw_fd() > 0);
     }
 
     #[test]
     fn read_write_hash() {
-        unsafe {
-            let sock = create_socket(b"hash", b"sha256").unwrap();
-            let child = create_socket_instance(sock.as_fd()).unwrap();
-            assert!(child.as_raw_fd() > 0);
+        let sock = create_socket(b"hash", b"sha256").unwrap();
+        let child = create_socket_instance(sock.as_fd()).unwrap();
+        assert!(child.as_raw_fd() > 0);
 
-            let hash_input = [0u8; 0];
+        let hash_input = [0u8; 0];
 
-            let mut kernel_hasher = Socket { fd: child };
-            let mut kernel_hash = [0u8; 32];
-            kernel_hasher.write(&hash_input).unwrap();
-            kernel_hasher.read(&mut kernel_hash).unwrap();
+        let mut kernel_hasher = Socket { fd: child };
+        let mut kernel_hash = [0u8; 32];
+        kernel_hasher.write(&hash_input).unwrap();
+        kernel_hasher.read(&mut kernel_hash).unwrap();
 
-            let code_hash: [u8; 32] = Sha256::digest(&hash_input).into();
+        let code_hash: [u8; 32] = Sha256::digest(&hash_input).into();
 
-            assert_eq!(kernel_hash, code_hash);
-        }
+        assert_eq!(kernel_hash, code_hash);
     }
 
     #[test]
@@ -164,7 +166,7 @@ mod sock_tests {
             hash_input.push(IoSlice::new(&inputs[i]));
         }
 
-        let mut kernel_hasher: Socket = unsafe {
+        let mut kernel_hasher: Socket = {
             let sock = create_socket(b"hash", b"sha256").unwrap();
             let child = create_socket_instance(sock.as_fd()).unwrap();
             assert!(child.as_raw_fd() > 0);
