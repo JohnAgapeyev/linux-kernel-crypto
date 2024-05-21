@@ -520,10 +520,27 @@ fn validate_base_transform(base: &TransformBase) -> Result<()> {
     Ok(())
 }
 
+fn validate_aead_transform(tf: &AeadTransform) -> Result<()> {
+    //Not validating is_async
+
+    //Not validating block_size
+
+    //Not validating iv_size
+
+    //Not validating max_auth_size
+
+    if tf.gen_iv.is_some() {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+
+    Ok(())
+}
+
 fn validate_transform(tf: Transform) -> Result<Transform> {
     match tf {
         Transform::Aead(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_aead_transform(&inner)?;
             Ok(tf)
         }
         Transform::AsyncCompression(ref inner) => {
