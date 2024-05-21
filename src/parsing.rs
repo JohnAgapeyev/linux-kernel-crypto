@@ -536,6 +536,10 @@ fn validate_aead_transform(tf: &AeadTransform) -> Result<()> {
     Ok(())
 }
 
+fn validate_async_compression_transform(tf: &AsyncCompressionTransform) -> Result<()> {
+    Ok(())
+}
+
 fn validate_transform(tf: Transform) -> Result<Transform> {
     match tf {
         Transform::Aead(ref inner) => {
@@ -545,6 +549,7 @@ fn validate_transform(tf: Transform) -> Result<Transform> {
         }
         Transform::AsyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_async_compression_transform(&inner)?;
             Ok(tf)
         }
         Transform::AsyncHash(ref inner) => {
