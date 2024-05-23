@@ -408,7 +408,6 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                         .map_err(|_| Error::from(ErrorKind::InvalidData))?,
                 );
             }
-            _ => return Err(Error::from(ErrorKind::InvalidInput)),
         };
     }
 
@@ -490,7 +489,6 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                 state_size: state_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             })
         }
-        _ => return Err(Error::from(ErrorKind::InvalidInput)),
     })
 }
 
@@ -536,7 +534,124 @@ fn validate_aead_transform(tf: &AeadTransform) -> Result<()> {
     Ok(())
 }
 
-fn validate_async_compression_transform(tf: &AsyncCompressionTransform) -> Result<()> {
+fn validate_async_compression_transform(_tf: &AsyncCompressionTransform) -> Result<()> {
+    Ok(())
+}
+
+fn validate_async_hash_transform(_tf: &AsyncHashTransform) -> Result<()> {
+    //Not validating is_async
+
+    //Not validating block_size
+
+    //Not validating digest_size
+
+    Ok(())
+}
+
+fn validate_public_key_transform(_tf: &PublicKeyTransform) -> Result<()> {
+    Ok(())
+}
+
+fn validate_cipher_transform(tf: &CipherTransform) -> Result<()> {
+    //Not validating block_size
+
+    if tf.min_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.max_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if !(tf.min_key_size <= tf.max_key_size) {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+
+    Ok(())
+}
+
+fn validate_compression_transform(_tf: &CompressionTransform) -> Result<()> {
+    Ok(())
+}
+
+fn validate_key_agreement_protocol_primitive_transform(
+    _tf: &KeyAgreementProtocolPrimitiveTransform,
+) -> Result<()> {
+    Ok(())
+}
+
+fn validate_linear_symmetric_key_transform(tf: &LinearSymmetricKeyTransform) -> Result<()> {
+    //Not validating block_size
+
+    if tf.min_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.max_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if !(tf.min_key_size <= tf.max_key_size) {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+
+    if tf.iv_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.chunk_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.state_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+
+    Ok(())
+}
+
+fn validate_rng_transform(tf: &RngTransform) -> Result<()> {
+    if tf.seed_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    Ok(())
+}
+
+fn validate_sync_compression_transform(_tf: &SyncCompressionTransform) -> Result<()> {
+    Ok(())
+}
+
+fn validate_sync_hash_transform(_tf: &SyncHashTransform) -> Result<()> {
+    //Not validating block_size
+
+    //Not validating digest_size
+
+    Ok(())
+}
+
+fn validate_symmetric_key_cipher_transform(tf: &SymmetricKeyCipherTransform) -> Result<()> {
+    //Not validating is_async
+
+    //Not validating block_size
+
+    //Not validating digest_size
+
+    if tf.min_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.max_key_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if !(tf.min_key_size <= tf.max_key_size) {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+
+    if tf.iv_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.chunk_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.walk_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if tf.state_size == 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
     Ok(())
 }
 
@@ -554,45 +669,54 @@ fn validate_transform(tf: Transform) -> Result<Transform> {
         }
         Transform::AsyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_async_hash_transform(&inner)?;
             Ok(tf)
         }
         Transform::PublicKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_public_key_transform(&inner)?;
             Ok(tf)
         }
         Transform::Cipher(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_cipher_transform(&inner)?;
             Ok(tf)
         }
         Transform::Compression(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_compression_transform(&inner)?;
             Ok(tf)
         }
         Transform::KeyAgreementProtocolPrimitive(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_key_agreement_protocol_primitive_transform(&inner)?;
             Ok(tf)
         }
         Transform::LinearSymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_linear_symmetric_key_transform(&inner)?;
             Ok(tf)
         }
         Transform::Rng(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_rng_transform(&inner)?;
             Ok(tf)
         }
         Transform::SyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_sync_compression_transform(&inner)?;
             Ok(tf)
         }
         Transform::SyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_sync_hash_transform(&inner)?;
             Ok(tf)
         }
         Transform::SymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
+            validate_symmetric_key_cipher_transform(&inner)?;
             Ok(tf)
         }
-        _ => Err(Error::from(ErrorKind::InvalidInput)),
     }
 }
 
