@@ -67,57 +67,26 @@ pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     addr
 }
 
-pub fn create_socket(salg_type: &[u8], salg_name: &[u8]) -> Result<OwnedFd> {
-    let sock = unsafe {
-        match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
-            -1 => return Err(io::Error::last_os_error()),
-            fd => OwnedFd::from_raw_fd(fd),
-        }
-    };
-
-    let addr = fill_addr(salg_type, salg_name);
-
-    unsafe {
-        match libc::bind(
-            sock.as_raw_fd(),
-            &addr as *const sockaddr_alg as *const sockaddr,
-            mem::size_of_val(&addr).try_into().unwrap(),
-        ) {
-            -1 => return Err(io::Error::last_os_error()),
-            _ => (),
-        }
-    }
-
-    Ok(sock)
-}
-
-pub fn create_socket_instance<'fd>(sock: BorrowedFd<'fd>) -> Result<OwnedFd> {
-    unsafe {
-        match libc::accept(sock.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
-            -1 => Err(io::Error::last_os_error()),
-            fd => Ok(OwnedFd::from_raw_fd(fd)),
-        }
-    }
-}
-
-pub fn set_key<'fd>(sock: BorrowedFd<'fd>, key: &[u8]) -> Result<()> {
-    unsafe {
-        match libc::setsockopt(
-            sock.as_raw_fd(),
-            SOL_ALG,
-            ALG_SET_KEY,
-            key.as_ptr() as *const libc::c_void,
-            key.len().try_into().unwrap(),
-        ) {
-            -1 => Err(io::Error::last_os_error()),
-            0 => Ok(()),
-            _ => unreachable!(),
-        }
-    }
-}
-
 pub struct Socket {
     pub fd: OwnedFd,
+}
+
+impl Socket {
+    pub fn set_key(&self, key: &[u8]) -> Result<()> {
+        unsafe {
+            match libc::setsockopt(
+                self.fd.as_raw_fd(),
+                SOL_ALG,
+                ALG_SET_KEY,
+                key.as_ptr() as *const libc::c_void,
+                key.len().try_into().unwrap(),
+            ) {
+                -1 => Err(io::Error::last_os_error()),
+                0 => Ok(()),
+                _ => unreachable!(),
+            }
+        }
+    }
 }
 
 impl Read for Socket {
@@ -168,6 +137,51 @@ impl Write for Socket {
     }
 }
 
+pub struct SocketGenerator {
+    pub fd: OwnedFd,
+}
+
+impl SocketGenerator {
+    pub fn new(salg_type: &[u8], salg_name: &[u8]) -> Result<SocketGenerator> {
+        let sock = unsafe {
+            match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
+                -1 => return Err(io::Error::last_os_error()),
+                fd => OwnedFd::from_raw_fd(fd),
+            }
+        };
+
+        let addr = fill_addr(salg_type, salg_name);
+
+        if unsafe {
+            libc::bind(
+                sock.as_raw_fd(),
+                &addr as *const sockaddr_alg as *const sockaddr,
+                mem::size_of_val(&addr).try_into().unwrap(),
+            )
+        } == -1
+        {
+            return Err(io::Error::last_os_error());
+        }
+
+        Ok(SocketGenerator { fd: sock })
+    }
+}
+
+impl Iterator for SocketGenerator {
+    type Item = Socket;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            match libc::accept(self.fd.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
+                -1 => None,
+                fd => Some(Socket {
+                    fd: OwnedFd::from_raw_fd(fd),
+                }),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod sock_tests {
     use super::*;
@@ -176,20 +190,20 @@ mod sock_tests {
 
     #[test]
     fn it_works() {
-        let sock = create_socket(b"hash", b"sha256").unwrap();
-        let child = create_socket_instance(sock.as_fd()).unwrap();
-        assert!(child.as_raw_fd() > 0);
+        let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+        let child = sg.next().unwrap();
+        assert!(child.fd.as_raw_fd() > 0);
     }
 
     #[test]
     fn read_write_hash() {
-        let sock = create_socket(b"hash", b"sha256").unwrap();
-        let child = create_socket_instance(sock.as_fd()).unwrap();
-        assert!(child.as_raw_fd() > 0);
-
         let hash_input = [0u8; 0];
 
-        let mut kernel_hasher = Socket { fd: child };
+        let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+
+        let mut kernel_hasher = sg.next().unwrap();
+        assert!(kernel_hasher.fd.as_raw_fd() > 0);
+
         let mut kernel_hash = [0u8; 32];
         kernel_hasher.write(&hash_input).unwrap();
         kernel_hasher.read(&mut kernel_hash).unwrap();
@@ -213,10 +227,10 @@ mod sock_tests {
         }
 
         let mut kernel_hasher: Socket = {
-            let sock = create_socket(b"hash", b"sha256").unwrap();
-            let child = create_socket_instance(sock.as_fd()).unwrap();
-            assert!(child.as_raw_fd() > 0);
-            Socket { fd: child }
+            let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+            let child = sg.next().unwrap();
+            assert!(child.fd.as_raw_fd() > 0);
+            child
         };
 
         kernel_hasher.write_vectored(&hash_input).unwrap();
