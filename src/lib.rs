@@ -8,6 +8,11 @@ pub mod traits;
 #[cfg(feature = "crypto-traits")]
 pub use crate::traits::*;
 
+#[cfg(feature = "rand-traits")]
+pub mod rand_traits;
+#[cfg(feature = "rand-traits")]
+pub use crate::rand_traits::*;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
