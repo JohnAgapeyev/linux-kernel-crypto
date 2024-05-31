@@ -32,11 +32,11 @@ pub fn send_more<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<u
 pub fn send_msg<'fd>(sock: BorrowedFd<'fd>, bufs: &mut [IoSlice<'_>], flags: i32) -> Result<usize> {
     let mhdr = msghdr {
         msg_name: ptr::null_mut(),
+        msg_namelen: 0,
         msg_iov: bufs.as_mut_ptr() as *mut libc::iovec,
         msg_iovlen: bufs.len(),
         msg_control: ptr::null_mut(),
         msg_controllen: 0,
-        msg_namelen: 0,
         msg_flags: 0,
     };
 
@@ -46,6 +46,40 @@ pub fn send_msg<'fd>(sock: BorrowedFd<'fd>, bufs: &mut [IoSlice<'_>], flags: i32
             sz => Ok(sz as usize),
         }
     }
+}
+
+pub fn recv_msg<'fd>(
+    sock: BorrowedFd<'fd>,
+    bufs: &mut [IoSliceMut<'_>],
+    flags: i32,
+) -> Result<usize> {
+    //TODO: We're not returning this or asking for input data, do we need to care about that?
+    let mut mhdr = msghdr {
+        msg_name: ptr::null_mut(),
+        msg_namelen: 0,
+        msg_iov: bufs.as_mut_ptr() as *mut libc::iovec,
+        msg_iovlen: bufs.len(),
+        msg_control: ptr::null_mut(),
+        msg_controllen: 0,
+        msg_flags: 0,
+    };
+    dbg!(bufs.len());
+    dbg!(&bufs);
+    dbg!(&flags);
+
+    let ret = unsafe {
+        match libc::recvmsg(sock.as_raw_fd(), ptr::addr_of_mut!(mhdr), flags) {
+            -1 => Err(io::Error::last_os_error()),
+            sz => Ok(sz as usize),
+        }
+    };
+
+    dbg!(bufs.len());
+    dbg!(&bufs);
+    dbg!(&flags);
+    dbg!(&ret);
+
+    ret
 }
 
 pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
@@ -67,6 +101,7 @@ pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     addr
 }
 
+#[derive(Debug)]
 pub struct Socket {
     pub fd: OwnedFd,
 }
@@ -137,6 +172,7 @@ impl Write for Socket {
     }
 }
 
+#[derive(Debug)]
 pub struct SocketGenerator {
     pub fd: OwnedFd,
 }
@@ -164,6 +200,21 @@ impl SocketGenerator {
         }
 
         Ok(SocketGenerator { fd: sock })
+    }
+    pub fn set_key(&self, key: &[u8]) -> Result<()> {
+        unsafe {
+            match libc::setsockopt(
+                self.fd.as_raw_fd(),
+                SOL_ALG,
+                ALG_SET_KEY,
+                key.as_ptr() as *const libc::c_void,
+                key.len().try_into().unwrap(),
+            ) {
+                -1 => Err(io::Error::last_os_error()),
+                0 => Ok(()),
+                _ => unreachable!(),
+            }
+        }
     }
 }
 
@@ -251,5 +302,23 @@ mod sock_tests {
         let code_hash: [u8; 32] = code_hasher.finalize().into();
 
         assert_eq!(kernel_hash, code_hash);
+    }
+
+    #[test]
+    fn rng_works() {
+        let init_buf = [0u8; 133];
+        let mut buf = init_buf.clone();
+        let rng_seed = [0u8; 0];
+
+        let mut sg = SocketGenerator::new(b"rng", b"stdrng").unwrap();
+        //You have to seed the algorithm, not the instance, even if the seedsize is zero!
+        sg.set_key(&rng_seed).unwrap();
+
+        let mut kernel_rng = sg.next().unwrap();
+        assert!(kernel_rng.fd.as_raw_fd() > 0);
+
+        kernel_rng.read(&mut buf).unwrap();
+
+        assert!(buf != init_buf);
     }
 }
