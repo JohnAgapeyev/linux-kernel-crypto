@@ -297,7 +297,7 @@ impl<T: TransformImpl> Transform<T> {
         let cipher_name = base.clone().name.into_bytes();
         Self {
             data,
-            sock_gen: SocketGenerator::new(&cipher_name, b"").unwrap(),
+            sock_gen: SocketGenerator::new(b"", &cipher_name).unwrap(),
         }
     }
 }
