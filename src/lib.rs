@@ -2,6 +2,8 @@ pub mod socket;
 pub use crate::socket::*;
 pub mod parsing;
 pub use crate::parsing::*;
+pub mod transform;
+pub use crate::transform::*;
 
 #[cfg(feature = "crypto-traits")]
 pub mod traits;
