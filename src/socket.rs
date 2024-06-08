@@ -103,7 +103,7 @@ pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
 
 #[derive(Debug)]
 pub struct Socket {
-    pub fd: OwnedFd,
+    fd: OwnedFd,
 }
 
 impl Socket {
@@ -174,7 +174,7 @@ impl Write for Socket {
 
 #[derive(Debug)]
 pub struct SocketGenerator {
-    pub fd: OwnedFd,
+    fd: OwnedFd,
 }
 
 impl SocketGenerator {
