@@ -329,7 +329,7 @@ pub struct Transform<T: TransformImpl> {
 }
 
 impl<T: TransformImpl> Transform<T> {
-    fn new(data: T) -> Self {
+    pub fn new(data: T) -> Self {
         let base = data.get_base();
         let cipher_name = base.clone().name.into_bytes();
         let salg_type = data.get_salg_type();
@@ -337,5 +337,11 @@ impl<T: TransformImpl> Transform<T> {
             data,
             sock_gen: SocketGenerator::new(salg_type.as_bytes(), &cipher_name).unwrap(),
         }
+    }
+
+    pub fn instance(&mut self) -> Result<Socket> {
+        self.sock_gen
+            .next()
+            .ok_or(Error::from(ErrorKind::ConnectionAborted))
     }
 }
