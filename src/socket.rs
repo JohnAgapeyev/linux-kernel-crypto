@@ -178,7 +178,7 @@ pub struct SocketGenerator {
 }
 
 impl SocketGenerator {
-    pub fn new(salg_type: &[u8], salg_name: &[u8]) -> Result<SocketGenerator> {
+    pub fn new(salg_type: &[u8], salg_name: &[u8]) -> Result<Self> {
         let sock = unsafe {
             match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
                 -1 => return Err(io::Error::last_os_error()),
@@ -199,7 +199,7 @@ impl SocketGenerator {
             return Err(io::Error::last_os_error());
         }
 
-        Ok(SocketGenerator { fd: sock })
+        Ok(Self { fd: sock })
     }
     pub fn set_key(&self, key: &[u8]) -> Result<()> {
         unsafe {

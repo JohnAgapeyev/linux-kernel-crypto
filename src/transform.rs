@@ -1,5 +1,7 @@
 use std::io::{self, Error, ErrorKind, Result};
 
+use crate::socket::*;
+
 //TODO: Reduce the amount of public struct/member visibility exported by this module
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -116,10 +118,22 @@ pub struct AeadTransform {
     pub gen_iv: Option<String>,
 }
 
+impl TransformImpl for AeadTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct AsyncCompressionTransform {
     pub base: TransformBase,
 }
+impl TransformImpl for AsyncCompressionTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct AsyncHashTransform {
     pub base: TransformBase,
@@ -127,10 +141,23 @@ pub struct AsyncHashTransform {
     pub block_size: u64,
     pub digest_size: u64,
 }
+
+impl TransformImpl for AsyncHashTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct PublicKeyTransform {
     pub base: TransformBase,
 }
+impl TransformImpl for PublicKeyTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct CipherTransform {
     pub base: TransformBase,
@@ -138,14 +165,34 @@ pub struct CipherTransform {
     pub min_key_size: u64,
     pub max_key_size: u64,
 }
+
+impl TransformImpl for CipherTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct CompressionTransform {
     pub base: TransformBase,
 }
+impl TransformImpl for CompressionTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct KeyAgreementProtocolPrimitiveTransform {
     pub base: TransformBase,
 }
+
+impl TransformImpl for KeyAgreementProtocolPrimitiveTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct LinearSymmetricKeyTransform {
     pub base: TransformBase,
@@ -157,10 +204,22 @@ pub struct LinearSymmetricKeyTransform {
     pub state_size: u64,
 }
 
+impl TransformImpl for LinearSymmetricKeyTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct RngTransform {
     pub base: TransformBase,
     pub seed_size: u64,
+}
+
+impl TransformImpl for RngTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -168,11 +227,23 @@ pub struct SyncCompressionTransform {
     pub base: TransformBase,
 }
 
+impl TransformImpl for SyncCompressionTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct SyncHashTransform {
     pub base: TransformBase,
     pub block_size: u64,
     pub digest_size: u64,
+}
+
+impl TransformImpl for SyncHashTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -188,8 +259,14 @@ pub struct SymmetricKeyCipherTransform {
     pub state_size: u64,
 }
 
+impl TransformImpl for SymmetricKeyCipherTransform {
+    fn get_base(&self) -> &TransformBase {
+        return &self.base;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Transform {
+pub enum TransformData {
     Aead(AeadTransform),
     AsyncCompression(AsyncCompressionTransform),
     AsyncHash(AsyncHashTransform),
@@ -202,4 +279,25 @@ pub enum Transform {
     SyncCompression(SyncCompressionTransform),
     SyncHash(SyncHashTransform),
     SymmetricKeyCipher(SymmetricKeyCipherTransform),
+}
+
+trait TransformImpl {
+    fn get_base(&self) -> &TransformBase;
+}
+
+#[derive(Debug)]
+pub struct Transform<T: TransformImpl> {
+    data: T,
+    sock_gen: SocketGenerator,
+}
+
+impl<T: TransformImpl> Transform<T> {
+    fn new(data: T) -> Self {
+        let base = data.get_base();
+        let cipher_name = base.clone().name.into_bytes();
+        Self {
+            data,
+            sock_gen: SocketGenerator::new(&cipher_name, b"").unwrap(),
+        }
+    }
 }

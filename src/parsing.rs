@@ -48,7 +48,7 @@ fn parse_entries(contents: impl BufRead) -> Result<HashMap<String, HashMap<Entry
     Ok(entry_lookup)
 }
 
-fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
+fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<TransformData> {
     let mut is_async: Option<bool> = None;
     let mut block_size: Option<u64> = None;
     let mut chunk_size: Option<u64> = None;
@@ -223,7 +223,7 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
     };
 
     Ok(match base.ttype {
-        TransformType::Aead => Transform::Aead(AeadTransform {
+        TransformType::Aead => TransformData::Aead(AeadTransform {
             base,
             is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
             block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
@@ -232,29 +232,31 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
             gen_iv: gen_iv.ok_or(Error::from(ErrorKind::InvalidData))?,
         }),
         TransformType::AsyncCompression => {
-            Transform::AsyncCompression(AsyncCompressionTransform { base })
+            TransformData::AsyncCompression(AsyncCompressionTransform { base })
         }
-        TransformType::AsyncHash => Transform::AsyncHash(AsyncHashTransform {
+        TransformType::AsyncHash => TransformData::AsyncHash(AsyncHashTransform {
             base,
             is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
             block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             digest_size: digest_size.ok_or(Error::from(ErrorKind::InvalidData))?,
         }),
-        TransformType::PublicKeyCipher => Transform::PublicKeyCipher(PublicKeyTransform { base }),
-        TransformType::Cipher => Transform::Cipher(CipherTransform {
+        TransformType::PublicKeyCipher => {
+            TransformData::PublicKeyCipher(PublicKeyTransform { base })
+        }
+        TransformType::Cipher => TransformData::Cipher(CipherTransform {
             base,
             block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             min_key_size: min_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             max_key_size: max_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
         }),
-        TransformType::Compression => Transform::Compression(CompressionTransform { base }),
+        TransformType::Compression => TransformData::Compression(CompressionTransform { base }),
         TransformType::KeyAgreementProtocolPrimitive => {
-            Transform::KeyAgreementProtocolPrimitive(KeyAgreementProtocolPrimitiveTransform {
+            TransformData::KeyAgreementProtocolPrimitive(KeyAgreementProtocolPrimitiveTransform {
                 base,
             })
         }
         TransformType::LinearSymmetricKeyCipher => {
-            Transform::LinearSymmetricKeyCipher(LinearSymmetricKeyTransform {
+            TransformData::LinearSymmetricKeyCipher(LinearSymmetricKeyTransform {
                 base,
                 block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
                 min_key_size: min_key_size.ok_or(Error::from(ErrorKind::InvalidData))?,
@@ -264,20 +266,20 @@ fn build_transform(rows: &HashMap<EntryKey, String>) -> Result<Transform> {
                 state_size: state_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             })
         }
-        TransformType::Rng => Transform::Rng(RngTransform {
+        TransformType::Rng => TransformData::Rng(RngTransform {
             base,
             seed_size: seed_size.ok_or(Error::from(ErrorKind::InvalidData))?,
         }),
         TransformType::SyncCompression => {
-            Transform::SyncCompression(SyncCompressionTransform { base })
+            TransformData::SyncCompression(SyncCompressionTransform { base })
         }
-        TransformType::SyncHash => Transform::SyncHash(SyncHashTransform {
+        TransformType::SyncHash => TransformData::SyncHash(SyncHashTransform {
             base,
             block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
             digest_size: digest_size.ok_or(Error::from(ErrorKind::InvalidData))?,
         }),
         TransformType::SymmetricKeyCipher => {
-            Transform::SymmetricKeyCipher(SymmetricKeyCipherTransform {
+            TransformData::SymmetricKeyCipher(SymmetricKeyCipherTransform {
                 base,
                 is_async: is_async.ok_or(Error::from(ErrorKind::InvalidData))?,
                 block_size: block_size.ok_or(Error::from(ErrorKind::InvalidData))?,
@@ -455,64 +457,64 @@ fn validate_symmetric_key_cipher_transform(tf: &SymmetricKeyCipherTransform) -> 
     Ok(())
 }
 
-fn validate_transform(tf: Transform) -> Result<Transform> {
+fn validate_transform(tf: TransformData) -> Result<TransformData> {
     match tf {
-        Transform::Aead(ref inner) => {
+        TransformData::Aead(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_aead_transform(&inner)?;
             Ok(tf)
         }
-        Transform::AsyncCompression(ref inner) => {
+        TransformData::AsyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_async_compression_transform(&inner)?;
             Ok(tf)
         }
-        Transform::AsyncHash(ref inner) => {
+        TransformData::AsyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_async_hash_transform(&inner)?;
             Ok(tf)
         }
-        Transform::PublicKeyCipher(ref inner) => {
+        TransformData::PublicKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_public_key_transform(&inner)?;
             Ok(tf)
         }
-        Transform::Cipher(ref inner) => {
+        TransformData::Cipher(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_cipher_transform(&inner)?;
             Ok(tf)
         }
-        Transform::Compression(ref inner) => {
+        TransformData::Compression(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_compression_transform(&inner)?;
             Ok(tf)
         }
-        Transform::KeyAgreementProtocolPrimitive(ref inner) => {
+        TransformData::KeyAgreementProtocolPrimitive(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_key_agreement_protocol_primitive_transform(&inner)?;
             Ok(tf)
         }
-        Transform::LinearSymmetricKeyCipher(ref inner) => {
+        TransformData::LinearSymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_linear_symmetric_key_transform(&inner)?;
             Ok(tf)
         }
-        Transform::Rng(ref inner) => {
+        TransformData::Rng(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_rng_transform(&inner)?;
             Ok(tf)
         }
-        Transform::SyncCompression(ref inner) => {
+        TransformData::SyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_sync_compression_transform(&inner)?;
             Ok(tf)
         }
-        Transform::SyncHash(ref inner) => {
+        TransformData::SyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_sync_hash_transform(&inner)?;
             Ok(tf)
         }
-        Transform::SymmetricKeyCipher(ref inner) => {
+        TransformData::SymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
             validate_symmetric_key_cipher_transform(&inner)?;
             Ok(tf)
@@ -520,7 +522,7 @@ fn validate_transform(tf: Transform) -> Result<Transform> {
     }
 }
 
-fn parse_transformations(contents: impl BufRead) -> Result<Vec<Transform>> {
+fn parse_transformations(contents: impl BufRead) -> Result<Vec<TransformData>> {
     let entries = parse_entries(contents)?;
 
     let mut output = Vec::new();
