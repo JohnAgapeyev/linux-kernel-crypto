@@ -326,9 +326,7 @@ trait SetKeyTransform: TransformImpl {}
 
 impl SetKeyTransform for AeadTransform {}
 impl SetKeyTransform for AsyncHashTransform {}
-impl SetKeyTransform for PublicKeyTransform {}
 impl SetKeyTransform for CipherTransform {}
-impl SetKeyTransform for KeyAgreementProtocolPrimitiveTransform {}
 impl SetKeyTransform for LinearSymmetricKeyTransform {}
 impl SetKeyTransform for RngTransform {}
 impl SetKeyTransform for SyncHashTransform {}
