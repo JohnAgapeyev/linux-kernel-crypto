@@ -322,6 +322,18 @@ trait TransformImpl {
     fn get_base(&self) -> &TransformBase;
 }
 
+trait SetKeyTransform: TransformImpl {}
+
+impl SetKeyTransform for AeadTransform {}
+impl SetKeyTransform for AsyncHashTransform {}
+impl SetKeyTransform for PublicKeyTransform {}
+impl SetKeyTransform for CipherTransform {}
+impl SetKeyTransform for KeyAgreementProtocolPrimitiveTransform {}
+impl SetKeyTransform for LinearSymmetricKeyTransform {}
+impl SetKeyTransform for RngTransform {}
+impl SetKeyTransform for SyncHashTransform {}
+impl SetKeyTransform for SymmetricKeyCipherTransform {}
+
 #[derive(Debug)]
 pub struct Transform<T: TransformImpl> {
     data: T,
@@ -343,5 +355,11 @@ impl<T: TransformImpl> Transform<T> {
         self.sock_gen
             .next()
             .ok_or(Error::from(ErrorKind::ConnectionAborted))
+    }
+}
+
+impl<T: SetKeyTransform> Transform<T> {
+    pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
+        self.instance().and_then(|sock| sock.set_key(key))
     }
 }
