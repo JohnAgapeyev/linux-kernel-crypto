@@ -360,12 +360,11 @@ impl<T: TransformImpl> Transform<T> {
     }
 }
 
-//impl<T: SetKeyTransform> Transform<T> {
-//    pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
-//        //self.instance().and_then(|sock| sock.set_key(key))
-//        Ok(())
-//    }
-//}
+impl<T: SetKeyTransform> Transform<T> {
+    pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
+        self.sock_gen.set_key(key)
+    }
+}
 
 #[derive(Debug)]
 pub struct TransformInstance<T: TransformImpl> {

@@ -82,6 +82,22 @@ pub fn recv_msg<'fd>(
     ret
 }
 
+pub fn raw_set_key(fd: &impl AsRawFd, key: impl AsRef<[u8]>) -> Result<()> {
+    unsafe {
+        match libc::setsockopt(
+            fd.as_raw_fd(),
+            SOL_ALG,
+            ALG_SET_KEY,
+            key.as_ref().as_ptr() as *const libc::c_void,
+            key.as_ref().len().try_into().unwrap(),
+        ) {
+            -1 => Err(io::Error::last_os_error()),
+            0 => Ok(()),
+            _ => unreachable!(),
+        }
+    }
+}
+
 pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     assert!(salg_type.len() <= 14);
     assert!(salg_name.len() <= 64);
@@ -108,19 +124,7 @@ pub struct Socket {
 
 impl Socket {
     pub fn set_key(&self, key: &[u8]) -> Result<()> {
-        unsafe {
-            match libc::setsockopt(
-                self.fd.as_raw_fd(),
-                SOL_ALG,
-                ALG_SET_KEY,
-                key.as_ptr() as *const libc::c_void,
-                key.len().try_into().unwrap(),
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                0 => Ok(()),
-                _ => unreachable!(),
-            }
-        }
+        raw_set_key(&self.fd, key)
     }
 }
 
@@ -202,19 +206,7 @@ impl SocketGenerator {
         Ok(Self { fd: sock })
     }
     pub fn set_key(&self, key: &[u8]) -> Result<()> {
-        unsafe {
-            match libc::setsockopt(
-                self.fd.as_raw_fd(),
-                SOL_ALG,
-                ALG_SET_KEY,
-                key.as_ptr() as *const libc::c_void,
-                key.len().try_into().unwrap(),
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                0 => Ok(()),
-                _ => unreachable!(),
-            }
-        }
+        raw_set_key(&self.fd, key)
     }
 }
 
