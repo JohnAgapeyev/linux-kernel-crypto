@@ -1,4 +1,5 @@
-use std::io::{self, Error, ErrorKind, Result};
+use std::io::{self, Error, ErrorKind, IoSlice, IoSliceMut, Read, Result, Write};
+use std::os::fd::OwnedFd;
 
 use crate::socket::*;
 
@@ -317,7 +318,7 @@ pub enum TransformData {
     SymmetricKeyCipher(SymmetricKeyCipherTransform),
 }
 
-trait TransformImpl {
+pub trait TransformImpl: Clone {
     fn get_salg_type(&self) -> String;
     fn get_base(&self) -> &TransformBase;
 }
@@ -349,15 +350,57 @@ impl<T: TransformImpl> Transform<T> {
         }
     }
 
-    pub fn instance(&mut self) -> Result<Socket> {
-        self.sock_gen
-            .next()
-            .ok_or(Error::from(ErrorKind::ConnectionAborted))
+    pub fn instance(&mut self) -> Result<TransformInstance<T>> {
+        Ok(TransformInstance::new(
+            self.data.clone(),
+            self.sock_gen
+                .next()
+                .ok_or(Error::from(ErrorKind::ConnectionAborted))?,
+        ))
     }
 }
 
-impl<T: SetKeyTransform> Transform<T> {
+//impl<T: SetKeyTransform> Transform<T> {
+//    pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
+//        //self.instance().and_then(|sock| sock.set_key(key))
+//        Ok(())
+//    }
+//}
+
+#[derive(Debug)]
+pub struct TransformInstance<T: TransformImpl> {
+    data: T,
+    sock: Socket,
+}
+
+impl<T: TransformImpl> TransformInstance<T> {
+    pub fn new(data: T, sock: Socket) -> Self {
+        Self { data, sock }
+    }
+}
+
+impl<T: SetKeyTransform> TransformInstance<T> {
     pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
-        self.instance().and_then(|sock| sock.set_key(key))
+        self.sock.set_key(key)
+    }
+}
+
+impl<T: TransformImpl> Read for TransformInstance<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        self.sock.read(buf)
+    }
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> Result<usize> {
+        self.sock.read_vectored(bufs)
+    }
+}
+impl<T: TransformImpl> Write for TransformInstance<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.sock.write(buf)
+    }
+    fn flush(&mut self) -> Result<()> {
+        self.sock.flush()
+    }
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        self.sock.write_vectored(bufs)
     }
 }
