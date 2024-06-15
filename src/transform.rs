@@ -403,3 +403,40 @@ impl<T: TransformImpl> Write for TransformInstance<T> {
         self.sock.write_vectored(bufs)
     }
 }
+
+#[cfg(test)]
+mod transform_tests {
+    use super::*;
+    use sha2::{Digest, Sha256};
+    use std::os::fd::AsFd;
+
+    #[test]
+    fn rng_works() {
+        let init_buf = [0u8; 133];
+        let mut buf = init_buf.clone();
+        let rng_seed = [0u8; 0];
+
+        let mut tf = Transform::new(RngTransform {
+            base: TransformBase {
+                name: "stdrng".to_string(),
+                driver: "drbg_pr_ctr_aes256".to_string(),
+                module: "kernel".to_string(),
+                priority: 100,
+                ref_cnt: 1,
+                self_test: true,
+                internal: false,
+                ttype: TransformType::Rng,
+            },
+            seed_size: 0,
+        });
+
+        //You have to seed the algorithm, not the instance, even if the seedsize is zero!
+        tf.set_key(&rng_seed).unwrap();
+
+        let mut kernel_rng = tf.instance().unwrap();
+
+        kernel_rng.read(&mut buf).unwrap();
+
+        assert!(buf != init_buf);
+    }
+}
