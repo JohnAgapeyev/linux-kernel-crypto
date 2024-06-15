@@ -323,7 +323,7 @@ pub trait TransformImpl: Clone {
     fn get_base(&self) -> &TransformBase;
 }
 
-trait SetKeyTransform: TransformImpl {}
+pub trait SetKeyTransform: TransformImpl {}
 
 impl SetKeyTransform for AeadTransform {}
 impl SetKeyTransform for AsyncHashTransform {}
@@ -407,7 +407,6 @@ impl<T: TransformImpl> Write for TransformInstance<T> {
 #[cfg(test)]
 mod transform_tests {
     use super::*;
-    use sha2::{Digest, Sha256};
     use std::os::fd::AsFd;
 
     #[test]
