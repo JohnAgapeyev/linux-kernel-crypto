@@ -1,5 +1,10 @@
-//use libc::{sockaddr_alg, AF_ALG};
-use libc::*;
+use libc::{c_void, sockaddr_alg, AF_ALG, SOCK_CLOEXEC, SOCK_SEQPACKET};
+//use libc::*;
+use nix::sys::socket::{
+    accept, msghdr, send, setsockopt, sockaddr, sockopt::AlgSetKey, AlgAddr, MsgFlags,
+    SockProtocol, SockType,
+};
+use nix::sys::uio::writev;
 
 use std::io::{self, IoSlice, IoSliceMut, Read, Result, Write};
 use std::iter::zip;
@@ -10,24 +15,6 @@ use std::os::fd::BorrowedFd;
 use std::os::fd::FromRawFd;
 use std::os::fd::OwnedFd;
 use std::ptr;
-
-pub fn send<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<usize> {
-    unsafe {
-        match libc::send(
-            sock.as_raw_fd(),
-            buf.as_ptr() as *const c_void,
-            buf.len(),
-            flags,
-        ) {
-            -1 => Err(io::Error::last_os_error()),
-            sz => Ok(sz as usize),
-        }
-    }
-}
-
-pub fn send_more<'fd>(sock: BorrowedFd<'fd>, buf: &[u8], flags: i32) -> Result<usize> {
-    send(sock, buf, flags | MSG_MORE)
-}
 
 pub fn send_msg<'fd>(sock: BorrowedFd<'fd>, bufs: &mut [IoSlice<'_>], flags: i32) -> Result<usize> {
     let mhdr = msghdr {
@@ -82,22 +69,6 @@ pub fn recv_msg<'fd>(
     ret
 }
 
-pub fn raw_set_key(fd: &impl AsRawFd, key: impl AsRef<[u8]>) -> Result<()> {
-    unsafe {
-        match libc::setsockopt(
-            fd.as_raw_fd(),
-            SOL_ALG,
-            ALG_SET_KEY,
-            key.as_ref().as_ptr() as *const libc::c_void,
-            key.as_ref().len().try_into().unwrap(),
-        ) {
-            -1 => Err(io::Error::last_os_error()),
-            0 => Ok(()),
-            _ => unreachable!(),
-        }
-    }
-}
-
 pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
     assert!(salg_type.len() <= 14);
     assert!(salg_name.len() <= 64);
@@ -123,8 +94,8 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn set_key(&self, key: &[u8]) -> Result<()> {
-        raw_set_key(&self.fd, key)
+    pub fn set_key(&self, key: Vec<u8>) -> Result<()> {
+        Ok(setsockopt(&self.fd, AlgSetKey::default(), &key)?)
     }
 }
 
@@ -157,22 +128,13 @@ impl Read for Socket {
 }
 impl Write for Socket {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        send(self.fd.as_fd(), buf, 0)
+        Ok(send(self.fd.as_raw_fd(), buf, MsgFlags::empty())?)
     }
     fn flush(&mut self) -> Result<()> {
         Ok(())
     }
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
-        unsafe {
-            match libc::writev(
-                self.fd.as_raw_fd(),
-                bufs.as_ptr() as *const libc::iovec,
-                bufs.len().try_into().unwrap(),
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                sz => Ok(sz as usize),
-            }
-        }
+        Ok(writev(&self.fd, bufs)?)
     }
 }
 
@@ -205,8 +167,8 @@ impl SocketGenerator {
 
         Ok(Self { fd: sock })
     }
-    pub fn set_key(&self, key: &[u8]) -> Result<()> {
-        raw_set_key(&self.fd, key)
+    pub fn set_key(&self, key: Vec<u8>) -> Result<()> {
+        Ok(setsockopt(&self.fd, AlgSetKey::default(), &key)?)
     }
 }
 
@@ -214,14 +176,9 @@ impl Iterator for SocketGenerator {
     type Item = Socket;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            match libc::accept(self.fd.as_raw_fd(), ptr::null_mut(), ptr::null_mut()) {
-                -1 => None,
-                fd => Some(Socket {
-                    fd: OwnedFd::from_raw_fd(fd),
-                }),
-            }
-        }
+        Some(Socket {
+            fd: unsafe { OwnedFd::from_raw_fd(accept(self.fd.as_raw_fd()).ok()?) },
+        })
     }
 }
 
@@ -304,7 +261,7 @@ mod sock_tests {
 
         let mut sg = SocketGenerator::new(b"rng", b"stdrng").unwrap();
         //You have to seed the algorithm, not the instance, even if the seedsize is zero!
-        sg.set_key(&rng_seed).unwrap();
+        sg.set_key(rng_seed.to_vec()).unwrap();
 
         let mut kernel_rng = sg.next().unwrap();
         assert!(kernel_rng.fd.as_raw_fd() > 0);

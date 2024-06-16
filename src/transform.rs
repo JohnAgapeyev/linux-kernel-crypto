@@ -362,7 +362,7 @@ impl<T: TransformImpl> Transform<T> {
 
 impl<T: SetKeyTransform> Transform<T> {
     pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
-        self.sock_gen.set_key(key)
+        self.sock_gen.set_key(key.to_vec())
     }
 }
 
@@ -380,7 +380,7 @@ impl<T: TransformImpl> TransformInstance<T> {
 
 impl<T: SetKeyTransform> TransformInstance<T> {
     pub fn set_key(&mut self, key: &[u8]) -> Result<()> {
-        self.sock.set_key(key)
+        self.sock.set_key(key.to_vec())
     }
 }
 
