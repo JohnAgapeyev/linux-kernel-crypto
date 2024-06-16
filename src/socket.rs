@@ -5,10 +5,7 @@ use nix::sys::socket::{
 use nix::sys::uio::{readv, writev};
 
 use std::io::{IoSlice, IoSliceMut, Read, Result, Write};
-use std::os::fd::AsFd;
-use std::os::fd::AsRawFd;
-use std::os::fd::FromRawFd;
-use std::os::fd::OwnedFd;
+use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 
 #[derive(Debug)]
 pub struct Socket {
