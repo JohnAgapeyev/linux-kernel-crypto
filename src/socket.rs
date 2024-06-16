@@ -1,11 +1,31 @@
+use nix::libc::ALG_OP_ENCRYPT;
 use nix::sys::socket::{
-    accept, bind, recv, send, setsockopt, socket, sockopt::AlgSetKey, AddressFamily, AlgAddr,
-    MsgFlags, SockFlag, SockType,
+    accept, bind, recv, send, sendmsg, setsockopt, socket, sockopt::AlgSetKey, AddressFamily,
+    AlgAddr, ControlMessage, MsgFlags, SockFlag, SockType,
 };
 use nix::sys::uio::{readv, writev};
 
 use std::io::{IoSlice, IoSliceMut, Read, Result, Write};
 use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
+
+pub fn encrypt(fd: impl AsRawFd, iv: &[u8], iov: &[IoSlice<'_>]) -> Result<usize> {
+    let alg_iv = ControlMessage::AlgSetIv(iv);
+    let alg_op = ControlMessage::AlgSetOp(&ALG_OP_ENCRYPT);
+
+    //TODO: Figure out how to have ciphertext output returned
+
+    Ok(sendmsg::<AlgAddr>(
+        fd.as_raw_fd(),
+        &iov,
+        &[alg_iv, alg_op],
+        MsgFlags::empty(),
+        None,
+    )?)
+}
+
+pub fn set_key(fd: impl AsFd, key: &[u8]) -> Result<()> {
+    Ok(setsockopt(&fd, AlgSetKey::default(), &key)?)
+}
 
 #[derive(Debug)]
 pub struct Socket {
@@ -14,7 +34,7 @@ pub struct Socket {
 
 impl Socket {
     pub fn set_key(&self, key: Vec<u8>) -> Result<()> {
-        Ok(setsockopt(&self.fd, AlgSetKey::default(), &key)?)
+        set_key(&self.fd, &key)
     }
 }
 
@@ -59,7 +79,7 @@ impl SocketGenerator {
         Ok(Self { fd })
     }
     pub fn set_key(&self, key: Vec<u8>) -> Result<()> {
-        Ok(setsockopt(&self.fd, AlgSetKey::default(), &key)?)
+        set_key(&self.fd, &key)
     }
 }
 
