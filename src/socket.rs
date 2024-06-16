@@ -1,92 +1,14 @@
-use libc::{c_void, sockaddr_alg, AF_ALG, SOCK_CLOEXEC, SOCK_SEQPACKET};
-//use libc::*;
 use nix::sys::socket::{
-    accept, msghdr, send, setsockopt, sockaddr, sockopt::AlgSetKey, AlgAddr, MsgFlags,
-    SockProtocol, SockType,
+    accept, bind, recv, send, setsockopt, socket, sockopt::AlgSetKey, AddressFamily, AlgAddr,
+    MsgFlags, SockFlag, SockType,
 };
-use nix::sys::uio::writev;
+use nix::sys::uio::{readv, writev};
 
-use std::io::{self, IoSlice, IoSliceMut, Read, Result, Write};
-use std::iter::zip;
-use std::mem;
+use std::io::{IoSlice, IoSliceMut, Read, Result, Write};
 use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
-use std::os::fd::BorrowedFd;
 use std::os::fd::FromRawFd;
 use std::os::fd::OwnedFd;
-use std::ptr;
-
-pub fn send_msg<'fd>(sock: BorrowedFd<'fd>, bufs: &mut [IoSlice<'_>], flags: i32) -> Result<usize> {
-    let mhdr = msghdr {
-        msg_name: ptr::null_mut(),
-        msg_namelen: 0,
-        msg_iov: bufs.as_mut_ptr() as *mut libc::iovec,
-        msg_iovlen: bufs.len(),
-        msg_control: ptr::null_mut(),
-        msg_controllen: 0,
-        msg_flags: 0,
-    };
-
-    unsafe {
-        match libc::sendmsg(sock.as_raw_fd(), ptr::addr_of!(mhdr), flags) {
-            -1 => Err(io::Error::last_os_error()),
-            sz => Ok(sz as usize),
-        }
-    }
-}
-
-pub fn recv_msg<'fd>(
-    sock: BorrowedFd<'fd>,
-    bufs: &mut [IoSliceMut<'_>],
-    flags: i32,
-) -> Result<usize> {
-    //TODO: We're not returning this or asking for input data, do we need to care about that?
-    let mut mhdr = msghdr {
-        msg_name: ptr::null_mut(),
-        msg_namelen: 0,
-        msg_iov: bufs.as_mut_ptr() as *mut libc::iovec,
-        msg_iovlen: bufs.len(),
-        msg_control: ptr::null_mut(),
-        msg_controllen: 0,
-        msg_flags: 0,
-    };
-    dbg!(bufs.len());
-    dbg!(&bufs);
-    dbg!(&flags);
-
-    let ret = unsafe {
-        match libc::recvmsg(sock.as_raw_fd(), ptr::addr_of_mut!(mhdr), flags) {
-            -1 => Err(io::Error::last_os_error()),
-            sz => Ok(sz as usize),
-        }
-    };
-
-    dbg!(bufs.len());
-    dbg!(&bufs);
-    dbg!(&flags);
-    dbg!(&ret);
-
-    ret
-}
-
-pub fn fill_addr(salg_type: &[u8], salg_name: &[u8]) -> sockaddr_alg {
-    assert!(salg_type.len() <= 14);
-    assert!(salg_name.len() <= 64);
-    let mut addr = sockaddr_alg {
-        salg_family: AF_ALG as u16,
-        salg_feat: 0u32,
-        salg_mask: 0u32,
-        salg_type: [0u8; 14],
-        salg_name: [0u8; 64],
-    };
-    for (dest, src) in zip(addr.salg_type.iter_mut(), salg_type.iter().take(14)) {
-        *dest = *src
-    }
-    for (dest, src) in zip(addr.salg_name.iter_mut(), salg_name.iter().take(64)) {
-        *dest = *src
-    }
-    addr
-}
 
 #[derive(Debug)]
 pub struct Socket {
@@ -101,29 +23,10 @@ impl Socket {
 
 impl Read for Socket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        unsafe {
-            match libc::recv(
-                self.fd.as_raw_fd(),
-                buf.as_mut_ptr() as *mut c_void,
-                buf.len(),
-                0i32,
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                sz => Ok(sz as usize),
-            }
-        }
+        Ok(recv(self.fd.as_raw_fd(), buf, MsgFlags::empty())?)
     }
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> Result<usize> {
-        unsafe {
-            match libc::readv(
-                self.fd.as_raw_fd(),
-                bufs.as_mut_ptr() as *mut libc::iovec,
-                bufs.len().try_into().unwrap(),
-            ) {
-                -1 => Err(io::Error::last_os_error()),
-                sz => Ok(sz as usize),
-            }
-        }
+        Ok(readv(self.fd.as_fd(), bufs)?)
     }
 }
 impl Write for Socket {
@@ -144,28 +47,19 @@ pub struct SocketGenerator {
 }
 
 impl SocketGenerator {
-    pub fn new(salg_type: &[u8], salg_name: &[u8]) -> Result<Self> {
-        let sock = unsafe {
-            match libc::socket(AF_ALG, SOCK_SEQPACKET | SOCK_CLOEXEC, 0) {
-                -1 => return Err(io::Error::last_os_error()),
-                fd => OwnedFd::from_raw_fd(fd),
-            }
-        };
+    pub fn new(salg_type: &str, salg_name: &str) -> Result<Self> {
+        let fd = socket(
+            AddressFamily::Alg,
+            SockType::SeqPacket,
+            SockFlag::SOCK_CLOEXEC,
+            None,
+        )?;
 
-        let addr = fill_addr(salg_type, salg_name);
+        let addr = AlgAddr::new(salg_type, salg_name);
 
-        if unsafe {
-            libc::bind(
-                sock.as_raw_fd(),
-                &addr as *const sockaddr_alg as *const sockaddr,
-                mem::size_of_val(&addr).try_into().unwrap(),
-            )
-        } == -1
-        {
-            return Err(io::Error::last_os_error());
-        }
+        bind(fd.as_raw_fd(), &addr)?;
 
-        Ok(Self { fd: sock })
+        Ok(Self { fd })
     }
     pub fn set_key(&self, key: Vec<u8>) -> Result<()> {
         Ok(setsockopt(&self.fd, AlgSetKey::default(), &key)?)
@@ -190,7 +84,7 @@ mod sock_tests {
 
     #[test]
     fn it_works() {
-        let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+        let mut sg = SocketGenerator::new("hash", "sha256").unwrap();
         let child = sg.next().unwrap();
         assert!(child.fd.as_raw_fd() > 0);
     }
@@ -199,7 +93,7 @@ mod sock_tests {
     fn read_write_hash() {
         let hash_input = [0u8; 0];
 
-        let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+        let mut sg = SocketGenerator::new("hash", "sha256").unwrap();
 
         let mut kernel_hasher = sg.next().unwrap();
         assert!(kernel_hasher.fd.as_raw_fd() > 0);
@@ -227,7 +121,7 @@ mod sock_tests {
         }
 
         let mut kernel_hasher: Socket = {
-            let mut sg = SocketGenerator::new(b"hash", b"sha256").unwrap();
+            let mut sg = SocketGenerator::new("hash", "sha256").unwrap();
             let child = sg.next().unwrap();
             assert!(child.fd.as_raw_fd() > 0);
             child
@@ -259,7 +153,7 @@ mod sock_tests {
         let mut buf = init_buf.clone();
         let rng_seed = [0u8; 0];
 
-        let mut sg = SocketGenerator::new(b"rng", b"stdrng").unwrap();
+        let mut sg = SocketGenerator::new("rng", "stdrng").unwrap();
         //You have to seed the algorithm, not the instance, even if the seedsize is zero!
         sg.set_key(rng_seed.to_vec()).unwrap();
 

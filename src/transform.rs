@@ -1,5 +1,4 @@
-use std::io::{self, Error, ErrorKind, IoSlice, IoSliceMut, Read, Result, Write};
-use std::os::fd::OwnedFd;
+use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Read, Result, Write};
 
 use crate::socket::*;
 
@@ -342,11 +341,11 @@ pub struct Transform<T: TransformImpl> {
 impl<T: TransformImpl> Transform<T> {
     pub fn new(data: T) -> Self {
         let base = data.get_base();
-        let cipher_name = base.clone().name.into_bytes();
+        let cipher_name = base.clone().name;
         let salg_type = data.get_salg_type();
         Self {
             data,
-            sock_gen: SocketGenerator::new(salg_type.as_bytes(), &cipher_name).unwrap(),
+            sock_gen: SocketGenerator::new(&salg_type, &cipher_name).unwrap(),
         }
     }
 
@@ -407,7 +406,6 @@ impl<T: TransformImpl> Write for TransformInstance<T> {
 #[cfg(test)]
 mod transform_tests {
     use super::*;
-    use std::os::fd::AsFd;
 
     #[test]
     fn rng_works() {

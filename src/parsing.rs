@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Error, ErrorKind, Result};
+use std::io::{BufRead, Error, ErrorKind, Result};
 
 use crate::transform::*;
 
@@ -539,6 +538,8 @@ fn parse_transformations(contents: impl BufRead) -> Result<Vec<TransformData>> {
 #[cfg(test)]
 mod parsing_tests {
     use super::*;
+    use std::fs::File;
+    use std::io::BufReader;
 
     #[test]
     fn entry_chunking() {
