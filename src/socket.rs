@@ -70,8 +70,9 @@ impl Iterator for SocketGenerator {
     type Item = Socket;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(Socket {
-            fd: unsafe { OwnedFd::from_raw_fd(accept(self.fd.as_raw_fd()).ok()?) },
+        let fd = accept(self.fd.as_raw_fd()).ok()?;
+        Some(Self::Item {
+            fd: unsafe { OwnedFd::from_raw_fd(fd) },
         })
     }
 }
