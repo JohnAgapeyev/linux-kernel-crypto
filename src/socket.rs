@@ -1,26 +1,51 @@
-use nix::libc::ALG_OP_ENCRYPT;
+use nix::libc::{ALG_OP_DECRYPT, ALG_OP_ENCRYPT};
 use nix::sys::socket::{
-    accept, bind, recv, send, sendmsg, setsockopt, socket, sockopt::AlgSetKey, AddressFamily,
-    AlgAddr, ControlMessage, MsgFlags, SockFlag, SockType,
+    accept, bind, recv, recvmsg, send, sendmsg, setsockopt, socket, sockopt::AlgSetKey,
+    AddressFamily, AlgAddr, ControlMessage, MsgFlags, SockFlag, SockType,
 };
 use nix::sys::uio::{readv, writev};
 
 use std::io::{IoSlice, IoSliceMut, Read, Result, Write};
 use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 
-pub fn encrypt(fd: impl AsRawFd, iv: &[u8], iov: &[IoSlice<'_>]) -> Result<usize> {
+pub fn encrypt(
+    fd: &impl AsRawFd,
+    iv: &[u8],
+    plaintext: &[IoSlice<'_>],
+    ciphertext: &mut [IoSliceMut<'_>],
+) -> Result<usize> {
     let alg_iv = ControlMessage::AlgSetIv(iv);
     let alg_op = ControlMessage::AlgSetOp(&ALG_OP_ENCRYPT);
 
-    //TODO: Figure out how to have ciphertext output returned
-
-    Ok(sendmsg::<AlgAddr>(
+    sendmsg::<AlgAddr>(
         fd.as_raw_fd(),
-        &iov,
+        &plaintext,
         &[alg_iv, alg_op],
         MsgFlags::empty(),
         None,
-    )?)
+    )?;
+
+    Ok(recvmsg::<AlgAddr>(fd.as_raw_fd(), ciphertext, None, MsgFlags::empty())?.bytes)
+}
+
+pub fn decrypt(
+    fd: &impl AsRawFd,
+    iv: &[u8],
+    ciphertext: &[IoSlice<'_>],
+    plaintext: &mut [IoSliceMut<'_>],
+) -> Result<usize> {
+    let alg_iv = ControlMessage::AlgSetIv(iv);
+    let alg_op = ControlMessage::AlgSetOp(&ALG_OP_DECRYPT);
+
+    sendmsg::<AlgAddr>(
+        fd.as_raw_fd(),
+        &ciphertext,
+        &[alg_iv, alg_op],
+        MsgFlags::empty(),
+        None,
+    )?;
+
+    Ok(recvmsg::<AlgAddr>(fd.as_raw_fd(), plaintext, None, MsgFlags::empty())?.bytes)
 }
 
 pub fn set_key(fd: impl AsFd, key: &[u8]) -> Result<()> {
@@ -181,5 +206,50 @@ mod sock_tests {
         kernel_rng.read(&mut buf).unwrap();
 
         assert!(buf != init_buf);
+    }
+
+    #[test]
+    fn encryption_works() {
+        let init_buf = [137u8; 1024];
+
+        let plaintext = init_buf.clone();
+        let iv = [24u8; 16];
+        let key = [11u8; 32];
+
+        let mut ciphertext = init_buf.clone();
+
+        let mut decrypted_plaintext = init_buf.clone();
+
+        let mut sg = SocketGenerator::new("skcipher", "cbc(aes)").unwrap();
+        sg.set_key(key.to_vec()).unwrap();
+
+        let mut kernel_encryptor = sg.next().unwrap();
+        assert!(kernel_encryptor.fd.as_raw_fd() > 0);
+
+        let mut kernel_decryptor = sg.next().unwrap();
+        assert!(kernel_decryptor.fd.as_raw_fd() > 0);
+        assert!(kernel_decryptor.fd.as_raw_fd() != kernel_encryptor.fd.as_raw_fd());
+
+        encrypt(
+            &kernel_encryptor.fd,
+            &iv,
+            &[IoSlice::new(&plaintext)],
+            &mut [IoSliceMut::new(&mut ciphertext)],
+        )
+        .unwrap();
+
+        assert!(plaintext != ciphertext);
+
+        decrypt(
+            &kernel_encryptor.fd,
+            &iv,
+            &[IoSlice::new(&ciphertext)],
+            &mut [IoSliceMut::new(&mut decrypted_plaintext)],
+        )
+        .unwrap();
+
+        assert!(plaintext != ciphertext);
+        assert!(ciphertext != decrypted_plaintext);
+        assert!(plaintext == decrypted_plaintext);
     }
 }
