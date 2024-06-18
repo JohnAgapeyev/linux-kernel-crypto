@@ -48,8 +48,8 @@ pub fn decrypt(
     Ok(recvmsg::<AlgAddr>(fd.as_raw_fd(), plaintext, None, MsgFlags::empty())?.bytes)
 }
 
-pub fn set_key(fd: impl AsFd, key: &[u8]) -> Result<()> {
-    Ok(setsockopt(&fd, AlgSetKey::default(), &key)?)
+pub fn set_key(fd: &impl AsFd, key: &[u8]) -> Result<()> {
+    Ok(setsockopt(fd, AlgSetKey::default(), &key)?)
 }
 
 #[derive(Debug)]
