@@ -362,7 +362,7 @@ fn validate_cipher_transform(tf: &CipherTransform) -> Result<()> {
     if tf.max_key_size == 0 {
         return Err(Error::from(ErrorKind::InvalidData));
     }
-    if !(tf.min_key_size <= tf.max_key_size) {
+    if tf.min_key_size > tf.max_key_size {
         return Err(Error::from(ErrorKind::InvalidData));
     }
 
@@ -388,7 +388,7 @@ fn validate_linear_symmetric_key_transform(tf: &LinearSymmetricKeyTransform) -> 
     if tf.max_key_size == 0 {
         return Err(Error::from(ErrorKind::InvalidData));
     }
-    if !(tf.min_key_size <= tf.max_key_size) {
+    if tf.min_key_size > tf.max_key_size {
         return Err(Error::from(ErrorKind::InvalidData));
     }
 
@@ -437,7 +437,7 @@ fn validate_symmetric_key_cipher_transform(tf: &SymmetricKeyCipherTransform) -> 
     if tf.max_key_size == 0 {
         return Err(Error::from(ErrorKind::InvalidData));
     }
-    if !(tf.min_key_size <= tf.max_key_size) {
+    if tf.min_key_size > tf.max_key_size {
         return Err(Error::from(ErrorKind::InvalidData));
     }
 
@@ -460,62 +460,62 @@ fn validate_transform(tf: TransformData) -> Result<TransformData> {
     match tf {
         TransformData::Aead(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_aead_transform(&inner)?;
+            validate_aead_transform(inner)?;
             Ok(tf)
         }
         TransformData::AsyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_async_compression_transform(&inner)?;
+            validate_async_compression_transform(inner)?;
             Ok(tf)
         }
         TransformData::AsyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_async_hash_transform(&inner)?;
+            validate_async_hash_transform(inner)?;
             Ok(tf)
         }
         TransformData::PublicKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_public_key_transform(&inner)?;
+            validate_public_key_transform(inner)?;
             Ok(tf)
         }
         TransformData::Cipher(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_cipher_transform(&inner)?;
+            validate_cipher_transform(inner)?;
             Ok(tf)
         }
         TransformData::Compression(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_compression_transform(&inner)?;
+            validate_compression_transform(inner)?;
             Ok(tf)
         }
         TransformData::KeyAgreementProtocolPrimitive(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_key_agreement_protocol_primitive_transform(&inner)?;
+            validate_key_agreement_protocol_primitive_transform(inner)?;
             Ok(tf)
         }
         TransformData::LinearSymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_linear_symmetric_key_transform(&inner)?;
+            validate_linear_symmetric_key_transform(inner)?;
             Ok(tf)
         }
         TransformData::Rng(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_rng_transform(&inner)?;
+            validate_rng_transform(inner)?;
             Ok(tf)
         }
         TransformData::SyncCompression(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_sync_compression_transform(&inner)?;
+            validate_sync_compression_transform(inner)?;
             Ok(tf)
         }
         TransformData::SyncHash(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_sync_hash_transform(&inner)?;
+            validate_sync_hash_transform(inner)?;
             Ok(tf)
         }
         TransformData::SymmetricKeyCipher(ref inner) => {
             validate_base_transform(&inner.base)?;
-            validate_symmetric_key_cipher_transform(&inner)?;
+            validate_symmetric_key_cipher_transform(inner)?;
             Ok(tf)
         }
     }

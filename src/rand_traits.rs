@@ -7,12 +7,12 @@ use crate::transform::*;
 impl RngCore for TransformInstance<RngTransform> {
     fn next_u32(&mut self) -> u32 {
         let mut out = [0u8; 4];
-        self.read(&mut out).unwrap();
+        self.read_exact(&mut out).unwrap();
         u32::from_ne_bytes(out)
     }
     fn next_u64(&mut self) -> u64 {
         let mut out = [0u8; 8];
-        self.read(&mut out).unwrap();
+        self.read_exact(&mut out).unwrap();
         u64::from_ne_bytes(out)
     }
     fn fill_bytes(&mut self, dest: &mut [u8]) {

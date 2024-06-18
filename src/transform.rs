@@ -120,10 +120,10 @@ pub struct AeadTransform {
 
 impl TransformImpl for AeadTransform {
     fn get_salg_type(&self) -> String {
-        return "aead".to_string();
+        "aead".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -133,10 +133,10 @@ pub struct AsyncCompressionTransform {
 }
 impl TransformImpl for AsyncCompressionTransform {
     fn get_salg_type(&self) -> String {
-        return "compression".to_string();
+        "compression".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -150,10 +150,10 @@ pub struct AsyncHashTransform {
 
 impl TransformImpl for AsyncHashTransform {
     fn get_salg_type(&self) -> String {
-        return "hash".to_string();
+        "hash".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -163,10 +163,10 @@ pub struct PublicKeyTransform {
 }
 impl TransformImpl for PublicKeyTransform {
     fn get_salg_type(&self) -> String {
-        return "akcipher".to_string();
+        "akcipher".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -180,10 +180,10 @@ pub struct CipherTransform {
 
 impl TransformImpl for CipherTransform {
     fn get_salg_type(&self) -> String {
-        return "cipher".to_string();
+        "cipher".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -193,10 +193,10 @@ pub struct CompressionTransform {
 }
 impl TransformImpl for CompressionTransform {
     fn get_salg_type(&self) -> String {
-        return "compression".to_string();
+        "compression".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -207,10 +207,10 @@ pub struct KeyAgreementProtocolPrimitiveTransform {
 
 impl TransformImpl for KeyAgreementProtocolPrimitiveTransform {
     fn get_salg_type(&self) -> String {
-        return "kpp".to_string();
+        "kpp".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -227,10 +227,10 @@ pub struct LinearSymmetricKeyTransform {
 
 impl TransformImpl for LinearSymmetricKeyTransform {
     fn get_salg_type(&self) -> String {
-        return "skcipher".to_string();
+        "skcipher".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -242,10 +242,10 @@ pub struct RngTransform {
 
 impl TransformImpl for RngTransform {
     fn get_salg_type(&self) -> String {
-        return "rng".to_string();
+        "rng".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -256,10 +256,10 @@ pub struct SyncCompressionTransform {
 
 impl TransformImpl for SyncCompressionTransform {
     fn get_salg_type(&self) -> String {
-        return "compression".to_string();
+        "compression".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -272,10 +272,10 @@ pub struct SyncHashTransform {
 
 impl TransformImpl for SyncHashTransform {
     fn get_salg_type(&self) -> String {
-        return "hash".to_string();
+        "hash".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 
@@ -294,10 +294,10 @@ pub struct SymmetricKeyCipherTransform {
 
 impl TransformImpl for SymmetricKeyCipherTransform {
     fn get_salg_type(&self) -> String {
-        return "skcipher".to_string();
+        "skcipher".to_string()
     }
     fn get_base(&self) -> &TransformBase {
-        return &self.base;
+        &self.base
     }
 }
 

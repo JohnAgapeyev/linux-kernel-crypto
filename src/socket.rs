@@ -19,7 +19,7 @@ pub fn encrypt(
 
     sendmsg::<AlgAddr>(
         fd.as_raw_fd(),
-        &plaintext,
+        plaintext,
         &[alg_iv, alg_op],
         MsgFlags::empty(),
         None,
@@ -39,7 +39,7 @@ pub fn decrypt(
 
     sendmsg::<AlgAddr>(
         fd.as_raw_fd(),
-        &ciphertext,
+        ciphertext,
         &[alg_iv, alg_op],
         MsgFlags::empty(),
         None,
