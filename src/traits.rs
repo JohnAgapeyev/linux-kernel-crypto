@@ -1,11 +1,9 @@
-pub fn nothing() {}
+use crypto::common::BlockSizeUser;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use crate::transform::*;
 
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+//impl BlockSizeUser for TransformInstance<CipherTransform> {
+//    type BlockSize: ArrayLength<u8> + 'static;
+//
+//    fn block_size() -> usize { ... }
+//}
